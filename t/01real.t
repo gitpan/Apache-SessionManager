@@ -3,17 +3,17 @@
 my $mod_perl;
 BEGIN {
 	local $@;
-	eval { require Apache::test };
+	eval { require Apache::testold };
 	$mod_perl = $@ ? 0 : 1;
 }  
 
-# Skip this test if Apache::test is not installed
+# Skip this test if Apache::testold is not installed
 unless ( $mod_perl ) {
 	print "1..0\n";
 	exit 0;
 }
 
-Apache::test->skip_test unless Apache::test->have_httpd;
+Apache::testold->skip_test unless Apache::testold->have_httpd;
 
 use strict;
 use vars qw($TEST_NUM);
@@ -44,18 +44,24 @@ my %requests = (
 	        uri     => '/session-auth',
 	        method  => 'GET',
 	       },
+   # mod_perl test module: should succeed with session cookie tracking (OO Apache::SessionManager interface)
+	6  => { 
+	        uri     => '/session-OO',
+	        method  => 'GET',
+	       },
 );
 
 print "1.." . (keys %requests) . "\n";
 
-Apache::test->test(++$TEST_NUM, 1);
-Apache::test->test(++$TEST_NUM, 1);
-Apache::test->test(++$TEST_NUM, 1);
-Apache::test->test(++$TEST_NUM, 1);
-Apache::test->test(++$TEST_NUM, 1);
+Apache::testold->test(++$TEST_NUM, 1);
+Apache::testold->test(++$TEST_NUM, 1);
+Apache::testold->test(++$TEST_NUM, 1);
+Apache::testold->test(++$TEST_NUM, 1);
+Apache::testold->test(++$TEST_NUM, 1);
+Apache::testold->test(++$TEST_NUM, 1);
 
 foreach my $testnum (sort {$a <=> $b} keys %requests) {
-	my $response = Apache::test->fetch($requests{$testnum});
+	my $response = Apache::testold->fetch($requests{$testnum});
 	my $content = $response->content;
 	print "$content\n" if $ENV{TEST_VERBOSE};
 }

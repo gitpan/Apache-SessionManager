@@ -59,15 +59,42 @@ Revision history for Perl extension Apache::SessionManager.
 	+ Added PLP.pm patch (patches/PLP-3.18.patch) to add direcly $session into 
 	  PLP Perl embedder
 	+ Added patch (patches/Apache-Session-1.54-patch) for Apache::Session::Lock::File
-	+ Added authentication test handler t/lib/MyAuth.pm to show how Apache::SessionManager 
-	  can work with authentication (see perldoc Apache::SessionManager::cookpod)
+	+ Added authentication test handler t/lib/MyAuth.pm to show how 
+	  Apache::SessionManager can work with authentication (see perldoc
+	  Apache::SessionManager::cookpod)
 	! Modified test handler t/lib/PrintEnv.pm to print $session dump
 	! Updated module docs, added sections
 	! Updated test and docs
 
 0.06    Mon Jul 28 17:00:00 2003
-	! Removed an exit() command from Makefile.PL in order to work with cpan/cpanplus
-	  shell when auto-installing required modules
+	! Removed an exit() command from Makefile.PL in order to work with 
+	  cpan/cpanplus shell when auto-installing required modules
 	! Update NAME section in cookpod to Apache::SessionManager::cookpod
 	! Minor corrections to cookpod 
 	! Uncommentend __END__ line in SessionManager.pm - why it was commented? :-)
+
+1.00    Mon Dec 01 18:00:00 2003 
+	+ Added mod_perl 2 and mod_perl 1 full compatibility
+	+ Added OO interface. Now Apache::SessionManager inherits from Apache class 
+	+ Added new cookpod section: "Using Apache::SessionManager without root privileges"
+	+ Added new cookpod section: "Using Apache::SessionManager with Apache::DBI"
+	+ Added new cookpod section: "Expiration policies on the client side"
+	+ Added t/lib/PerlEnvOO.pm simple mod_perl handler to test OO interface
+	! Updated Makefile.PL in order to:
+		- accept command line switch '-n' which 
+		  doesn't ask at prompt and doesn't run live Apache tests. This is to pack 
+		  easier this package for Debian (suggested by Krzysztof Krzyzaniak 
+		  <eloy@debian.org>)
+		- check correctly environment: test mod_perl generation
+		  and test suite. Added messages before configuring test
+		- add httpd.conf extra lines for testing with Apache::DBI
+	! Updated PODS
+		- SessionManager.pm PODS (VERSION section)
+		- added L<> in every module name
+		- documented mp1/mp2 bug with "PerlSetVar Foo 0"
+		- Switched use of $ENV{'GATEWAY_INTERFACE'} to $ENV{'MOD_PERL'} in cookbook samples
+		- Fix 'Expire' with 'Expires'
+	! Bug fix: SessionManagerExpire: '0' => (none|no|disabled) value means no 
+	  expiration time 
+	! Moved tests to run only under Apache::testold mod_perl 1 test suite
+	! Ported t/lib/*.pm sample modules to work either with mod_perl 1.0 and 2.0

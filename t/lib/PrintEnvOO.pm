@@ -1,4 +1,4 @@
-package PrintEnv;
+package PrintEnvOO;
 
 require 5.005;
 use strict;
@@ -17,6 +17,8 @@ BEGIN {
 		Apache::Const->import(-compile => qw(OK));
 		require Apache::RequestRec;
 		require Apache::RequestIO;
+		require CGI;
+		CGI->import(qw(:cgi-lib));
 	}
 	else {
 		require Apache::Constants;
@@ -25,8 +27,8 @@ BEGIN {
 }
 
 sub handler {
-	my $r = shift;
-	my $session = Apache::SessionManager::get_session($r);
+	my $r = new Apache::SessionManager(shift);
+	my $session = $r->get_session;
 	my $str;
 
 	# Main output
@@ -35,9 +37,44 @@ sub handler {
 <HEAD><TITLE>mod_perl Apache::SessionManager test module</TITLE></HEAD>
 <BODY BGCOLOR="#FFFFFF">
 <CENTER><H1>mod_perl Apache::SessionManager test module</H1></CENTER>
+<TABLE>
+	<TR>
+		<TD>
+<FORM METHOD="GET">
+	<INPUT TYPE="text" NAME="delete_session_param">
+	<INPUT TYPE="submit" VALUE="Reload">
+</FORM>
+		</TD>
+		<TD>
+<FORM METHOD="GET">
+	<INPUT TYPE="hidden" NAME="delete_session" VALUE="1">
+	<INPUT TYPE="submit" VALUE="Delete session next time">
+</FORM>
+		</TR>
+	</TD>
+</TABLE>
 EOM
 
+	# Get CGI params
+	my $form = (MP2) ? { Vars } : { $r->args() };
+	
+	# Delete session value (if any) OO interface
+	$r->delete_session_param($form->{delete_session_param});
+
+	# Get session values
 	$str .= '<PRE>' . Data::Dumper::Dumper($session) . '</PRE>';
+
+	# Get session values, OO interface I
+	$str .= '<PRE>' . Data::Dumper::Dumper($r->{'session'}) . '</PRE>';
+
+	# Get session values, OO interface II
+	$str .= '<PRE>' . "@{ [ $r->get_session_param ] }" . '</PRE>';
+	$str .= '<PRE>' . join(', ',$r->get_session_param) . '</PRE>';
+
+	# Get session values, OO interface II
+	my $param = $r->get_session_param('_session_id');
+	$str .= '<PRE>' . $param . '</PRE>';
+	
 #	$str .= HashVariables($session,'<H2>Session Dump</H2>');
 	$str .= HashVariables(\%INC,'<H2>%INC</H2>');
 	$str .= HashVariables($r->subprocess_env,'<H2>Environment variables</H2>');
@@ -45,9 +82,15 @@ EOM
 	$str .= "</BODY>\n</HTML>";
 	
 	# set session value
-	$$session{rand()} = rand;
+	$session->{rand()} = rand;
 
-	# Output code to client
+	# set session values, OO interface
+	$r->set_session_param( param1 => rand(), param2 => rand() );
+
+	# Destroy session, OO interface
+	$r->destroy_session if $form->{delete_session} eq '1';
+
+   # Output code to client
    $r->content_type('text/html');
    MP2 ? 1 : $r->send_http_header;
    $r->print($str);
@@ -61,4 +104,4 @@ sub HashVariables {
       $str .= "<B>$_</B> = $$hash{$_}<BR>\n";
    }
    return $str;
-}  
+}
