@@ -1,4 +1,4 @@
-use strict;
+
 
 my $necessary_modules = {
 	'Apache' => 'The Apache Perl API',
@@ -116,7 +116,7 @@ __DATA__
 PerlModule Apache::SessionManager
 PerlTransHandler Apache::SessionManager
 PerlSetVar SessionManagerTracking On
-PerlSetVar SessionManagerDebug 3
+PerlSetVar SessionManagerDebug 5
 
 # These documents require cookies session
 <Location /session>
@@ -124,6 +124,7 @@ PerlSetVar SessionManagerDebug 3
 	PerlHandler PrintEnv
 	PerlSetVar SessionManagerStore File
 	PerlSetVar SessionManagerLock File
+	PerlSetVar SessionManagerCookieArgs "Path => /session, Secure => 1, Extras => some_value"
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
 	                                    LockDirectory => /tmp"
 </Location>
@@ -138,6 +139,17 @@ PerlSetVar SessionManagerDebug 3
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
 	                                    LockDirectory => /tmp"
 </LocationMatch>
+
+# These documents require cookies session + mod_baskhand cookie load-balancing
+<Location /session-bh>
+	SetHandler perl-script
+	PerlHandler PrintEnv
+	PerlSetVar SessionManagerStore File
+	PerlSetVar SessionManagerLock File
+	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
+	                                    LockDirectory => /tmp"
+	PerlSetVar SessionManagerEnableModBackhand On
+</Location>
 
 # These documents don't require cookies session
 <Location /no-session>

@@ -17,8 +17,13 @@ my %requests = (
 	        uri     => '/uri-session',
 	        method  => 'GET',
 	       },
-   # mod_perl test module: should succeed without session tracking
+   # mod_perl test module: should succeed with cookie session tracking
 	3  => { 
+	        uri     => '/session-bh',
+	        method  => 'GET',
+	       },
+   # mod_perl test module: should succeed without session tracking
+	4  => { 
 	        uri     => '/no-session',
 	        method  => 'GET',
 	       },
@@ -26,6 +31,7 @@ my %requests = (
 
 print "1.." . (keys %requests) . "\n";
 
+test ++$TEST_NUM, 1;
 test ++$TEST_NUM, 1;
 test ++$TEST_NUM, 1;
 test ++$TEST_NUM, 1;

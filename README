@@ -1,6 +1,6 @@
 Description
 -----------
-This is version 0.02 of Apache::SessionManager
+This is version 0.03 of Apache::SessionManager
 
 This package contains an Apache mod_perl module to manage HTTP sessions.
 Apache::SessionManager is a mod_perl module that helps 

@@ -12,18 +12,17 @@ package Apache::SessionManager;
 require 5.005;
 use strict;
 use Apache::Constants qw(:common REDIRECT);
-use Apache::Request ();
 use Apache::Cookie ();
 use Apache::URI ();
 use Apache::Session::Flex;
 
 use vars qw($VERSION);
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 # Translation URI handler (embeds simple management for session tracking via URI)
 sub handler {
 	my $r = shift;
-	my (%session_config,%session,$session_id);
+	my (%session_config,%session,$session_id,%cookie_options);
 
 	return DECLINED unless $r->is_initial_req;
 			
@@ -62,7 +61,7 @@ sub handler {
 	$session_config{'SessionManagerSerialize'} = $r->dir_config("SessionManagerSerialize") || 'Storable';
 	$session_config{'SessionManagerExpire'} = $r->dir_config("SessionManagerExpire") || 3600;
 	$session_config{'SessionManagerInactivity'} = $r->dir_config("SessionManagerInactivity");
-	$session_config{'SessionManagerName'} = $r->dir_config("SessionManagerName") || 'PERLSESSIONID'; 	
+	$session_config{'SessionManagerName'} = $r->dir_config("SessionManagerName") || 'PERLSESSIONID';
 
 	if ( $session_config{'SessionManagerDebug'} >= 3 ) {
 		print STDERR "$debug_prefix configuration settings\n";
@@ -97,6 +96,9 @@ sub handler {
 		   print STDERR "\t$_ = $apache_session_flex_options{$_}\n";
 		}
 	}
+
+	# Experimental code (support for mod_backhand)
+	$session_id = substr($session_id,8) if ( $r->dir_config('SessionManagerEnableModBackhand') eq 'On' );
 	 
 	# Try to retrieve session object from session ID
 	my $res = _tieSession(\%session, $session_id, \%apache_session_flex_options,$session_config{'SessionManagerDebug'});
@@ -142,19 +144,37 @@ sub handler {
 
 	# Foreach new session we:
 	unless ( $session_id ) {
+		my $session_id = $session{_session_id};
+		
+		if ( $r->dir_config('SessionManagerEnableModBackhand') eq 'On' ) {
+			my $hex_addr = join "", map { sprintf "%lx", $_ } unpack('C4', gethostbyname($r->get_server_name));
+			$session_id = $hex_addr . $session_id;
+		}
+
 		# redirect to embedded session ID URI...
 		if ( $r->dir_config("SessionManagerURITracking") eq 'On' ) {
 			print STDERR "$debug_prefix URI redirect...\n" if $session_config{'SessionManagerDebug'} > 0;
-			_redirect($r,$session{_session_id});
+			_redirect($r,$session_id);
 			return REDIRECT;
 		}
 		# ...or send cookie to browser
 		else {
 			print STDERR "$debug_prefix sending cookie...\n" if $session_config{'SessionManagerDebug'} > 0;
+			# Load cookie specific parameters
+			foreach my $arg ( split(/\s*,\s*/,$r->dir_config('SessionManagerCookieArgs')) ) {
+				my ($key,$value) = split(/\s*=>\s*/,$arg);
+				$cookie_options{lc($key)} = $value if $key =~ /^(expires|domain|path|secure)$/i;
+			}
+			if ( $session_config{'SessionManagerDebug'} >= 5 ) {
+				print STDERR "$debug_prefix Cookie options\n";
+				foreach (sort keys %cookie_options)	{
+				   print STDERR "\t$_ = $cookie_options{$_}\n";
+				}
+			}
 			my $cookie = Apache::Cookie->new($r,
-				-name => $session_config{'SessionManagerName'},
-				-value => $session{_session_id},
-				-path   => '/'
+				name => $session_config{'SessionManagerName'},
+				value => $session_id,
+				%cookie_options
 			  );
 			$cookie->bake;
 		}
@@ -423,6 +443,42 @@ This single directive defines session cookie name
 
 The default value is C<PERLSESSIONID>
 
+=item C<SessionManagerCookieArgs>
+
+With this directive you can provide optional arguments 
+for cookie attributes setting. The arguments are passed as 
+comma-separated list of name/value pairs. The only attributes 
+accepted are:
+
+=over 4
+
+=item * Domain
+
+Set the domain for the cookie.
+
+=item * Path
+
+Set the path for the cookie.
+
+=item * Secure
+
+Set the secure flag for the cookie. 
+
+=item * Expire
+
+Set expire time for the cookie.
+
+=back
+
+For instance:
+
+   PerlSetVar SessionManagerCookieArgs "Path   => /some-path, \
+                                        Domain => .yourdomain.com, \
+                                        Secure => 1"
+
+Please see the documentation for C<Apache::Cookie> or C<CGI::Cookie> in order
+to see more cookie arguments details.
+
 =item C<SessionManagerStore> datastore
 
 This single directive sets the session datastore 
@@ -553,6 +609,27 @@ This single directive set debug level.
 If greather than zero, debug informations will be print to STDERR.
 The default value is C<0> (no debug information will be print).
 
+=item C<SessionManagerEnableModBackhand> On|Off
+
+This single directive enable 'experimental' mod_backhand sticky session
+load balancing support.
+Someone asked me this feature, so I've added it.
+
+   PerlSetVar SessionManagerEnableModBackhand On
+
+A few words on mod_backhand. mod_backhand is a load balancing Apache module.
+mod_backhand can attempt to find a cookie in order to hex decodes the first 8 
+bytes of its content into an IPv4 style IP address.
+It will attempt to find this IP address in the list of candidates
+and if it is found it will make the server in question the only remaining
+candidate. This can be used to implement sticky user sessions -- where a 
+given user will always be delivered to the same server once a session 
+has been established.
+Simply turning on this directive, you add hex IP address in front to session_id.
+See mod_backhand docs for more details (http://www.backhand.org/mod_backhand).
+
+The default value is C<Off>.
+
 =back
 
 =head1 URI TRACKING NOTES
@@ -617,6 +694,10 @@ or the rewrite engine will proxy these requests to mod_perl server.
 
 =item * 
 
+Add an OO interface by subclassing Apache request object directly
+
+=item * 
+
 Add the possibility of auto-switch session ID tracking 
 from cookie to URI in cookieless situation.
 The code from Greg Cope session manager implementation could be integrated.
@@ -628,7 +709,8 @@ between browser and server.
 
 =item * 
 
-Include into the distro the session cleanup script (the scripts I use for cleanup actually)
+Include into the distro the session cleanup script (the scripts I use for 
+cleanup actually)
 
 =item * 
 
@@ -673,7 +755,7 @@ will be found.
 =head1 SEE ALSO
 
 L<Apache::Session>, L<Apache::Session::Flex>, L<Apache::Request>, 
-L<Apache>, L<perl(1)>
+L<Apache::Cookie>, L<Apache>, L<perl(1)>
 
 =head1 COPYRIGHT AND LICENSE
 

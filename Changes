@@ -32,3 +32,12 @@ Revision history for Perl extension Apache::SessionManager.
 	! Corrected Makefile.PL httpd.conf extra lines
 	! Updated pod (moved PerlTransHandler outside <Location> section in
 	  a configuration example!)
+
+0.03    Wed Oct 04 12:00:00 2002
+	+ Added 'SessionManagerCookieArgs' PerlSetVar directive in order to 
+	  set cookie optional attributes.
+	+ Added experimental support 'SessionManagerEnableModBackhand' 
+          PerlSetVar directive in order to support mod_backhand sticky 
+	  cookie session load balancing.
+	! Updated Makefile.PL httpd.conf extra lines
+	! Updated docs (added pod for new directive 'SessionManagerCookieArgs')
