@@ -270,7 +270,7 @@ PerlSetVar SessionManagerDebug 5
 	PerlSetVar SessionManagerCookieArgs "Path => /session-ip_exclude, Secure => 0"
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerSetEnv On
-	PerlSetVar SessionManagerIPExclude "127.0.0. 192.168."
+	PerlSetVar SessionManagerIPExclude "192.168.0.1 127.0.0.0/8"
 </Location>
 
 # These documents require cookies session w/authentication

@@ -7,21 +7,21 @@ Apache::SessionManager
 
 =head1 INTRODUCTION
 
-This HOWTO describes use of Apache::SessionManager with several application
-servers  and toolkits available designed to run (also) under mod_perl. There
-are many ways to do it; this document will not describe all possible 
-configurations.
+This HOWTO describes use of L<Apache::SessionManager|Apache::SessionManager>
+with several application servers  and toolkits available designed to run (also)
+under mod_perl. There are many ways to do it; this document will not describe
+all possible configurations.
 
 =head1 WHAT DOES Apache::SessionManager DO
 
-Apache::SessionManager is a HTTP session manager wrapper around
-L<Apache::Session|Apache::Session> (L<Apache::Session|Apache::Session> provides
-a persistence mechanism for data associated with a session  between a client
-and the server).
+L<Apache::SessionManager|Apache::SessionManager> is a HTTP session manager
+wrapper around L<Apache::Session|Apache::Session>
+(L<Apache::Session|Apache::Session> provides a persistence mechanism for data
+associated with a session  between a client and the server).
 
-Apache::SessionManager allows you to integrate a transparent session management
-into your web application (it handles for you the cookie/URI session tracking
-management).
+L<Apache::SessionManager|Apache::SessionManager> allows you to integrate a
+transparent session management into your web application (it handles for you
+the cookie/URI session tracking management).
 
 A session is a set of interactions (HTTP transactions).  For example, a visitor
 may add items to be purchased to a shopping cart and the  contents of the cart
@@ -32,7 +32,8 @@ purchase process.
 
 =head2 INTRODUCTION
 
-This section describes how to use Apache::SessionManager within
+This section describes how to use
+L<Apache::SessionManager|Apache::SessionManager> within
 L<CGI::Application|CGI::Application>. The idea is to use sublass
 L<CGI::Application|CGI::Application> by adding session support and to use 
 CGI::Application::SessionManager as base class for your applications.
@@ -47,8 +48,9 @@ will be  implemented as a Sub-Class of L<CGI::Application|CGI::Application>.
 
 =head2 CONFIGURATION
 
-This section illustrates how to use configure Apache::SessionManager for use
-within L<CGI::Application|CGI::Application> Perl extension.
+This section illustrates how to use configure
+L<Apache::SessionManager|Apache::SessionManager> for use within
+L<CGI::Application|CGI::Application> Perl extension.
 
 =head3 CONFIGURATION VIA F<httpd.conf>
 
@@ -104,8 +106,9 @@ directives  directly into an F<.htaccess> file:
    </IfModule>   
 
 The only difference is that you cannot use C<Location> directive (I used
-C<FilesMatch>) and you must install Apache::SessionManager in C<Header parsing>
-phase of Apache request instead of C<URI translation> phase.
+C<FilesMatch>) and you must install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase of
+Apache request instead of C<URI translation> phase.
 
 =head3 NOTES ON USING F<.htaccess> INSTEAD OF F<httpd.conf>
 
@@ -113,9 +116,10 @@ phase of Apache request instead of C<URI translation> phase.
 
 =item *
 
-In this cases it is necessary to install Apache::SessionManager in C<Header
-parsing> phase and not into C<URI translation> phase (in this phase,
-F<.htaccess> hasn't yet  been processed).
+In this cases it is necessary to install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase and
+not into C<URI translation> phase (in this phase, F<.htaccess> hasn't yet  been
+processed).
 
 =item *
 
@@ -197,17 +201,52 @@ Restart the httpd server and launch http://localhost/cgi-application/webapp.cgi
 
 =head2 SEE ALSO
 
-Apache::SessionManager, CGI::Application, Apache, perl
+L<Apache::SessionManager|Apache::SessionManager>,
+L<CGI::Application|CGI::Application>, L<Apache|Apache>, perl
+
+=head1 Apache::SessionManager WITH CGI::Builder
+
+=head2 INTRODUCTION
+
+This section describes how to use
+L<Apache::SessionManager|Apache::SessionManager> with
+L<CGI::Builder|CGI::Builder> toolkit.
+
+L<CGI::Builder|CGI::Builder> is a set of Perl modules which collectively implement a
+template processing system. In this context, a template is a text document
+containing special markup tags.
+
+The idea is to use the
+L<CGI::Builder::SessionManager|CGI::Builder::SessionManager> extension
+(available on CPAN), that is the L<CGI::Builder|CGI::Builder> wrapper around
+L<Apache::SessionManager|Apache::SessionManager>.
+
+For installation and use of this extension, please see
+L<CGI::Builder::SessionManager|CGI::Builder::SessionManager> documentation.
+
+=head2 SEE ALSO
+
+L<Apache::SessionManager|Apache::SessionManager>,
+L<CGI::Builder::SessionManager|CGI::Builder::SessionManager>,
+L<CGI::Builder|CGI::Builder>, L<Apache|Apache>, perl
 
 =head1 Apache::SessionManager WITH HTML::Mason
 
 =head2 INTRODUCTION
 
-This section describes use of Apache::SessionManager with
-L<HTML::Mason|HTML::Mason> (L<http://www.masonhq.com>). 
-There are many ways to do it; this document will not describe all possible
-configurations. It's meant to be a quick C<get on your feet> HOWTO and also to
-answer some common questions that  appear on the mailing list.
+This section describes use of L<Apache::SessionManager|Apache::SessionManager>
+with L<HTML::Mason|HTML::Mason> (L<http://www.masonhq.com>).  There are many
+ways to do it; this document will not describe all possible configurations.
+It's meant to be a quick C<get on your feet> HOWTO and also to answer some
+common questions that appear on the mailing list.
+
+Yes. I know, there's
+L<MasonX::Request::WithApacheSession|MasonX::Request::WithApacheSession>. But I
+wrote and released L<Apache::SessionManager|Apache::SessionManager> some time
+before L<MasonX::Request::WithApacheSession|MasonX::Request::WithApacheSession>
+has been released. And since I need session object also outside Response
+phase (like Authentication and/or Authorization phases) I still use
+L<Apache::SessionManager|Apache::SessionManager> with Mason.
 
 =head2 CONFIGURATION
 
@@ -294,8 +333,9 @@ directive directly into an F<.htaccess> file:
    </FilesMatch>
 
 The only difference is that you cannot use C<Location> directive (I used
-C<FilesMatch>) and you must install Apache::SessionManager in C<Header parsing>
-phase of Apache request instead of C<URI translation> phase.
+C<FilesMatch>) and you must install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase of
+Apache request instead of C<URI translation> phase.
 
 Moreover, using F<.htaccess> is less flexible and efficient because
 C<PerlRequire> starts F<masonhandler.pl> at run-time on each request.
@@ -356,9 +396,10 @@ directive directly into an F<.htaccess> file:
 
 =item *
 
-In both cases it is necessary to install Apache::SessionManager in C<Header
-parsing> phase and not into C<URI translation> phase (in this phase,
-F<.htaccess> hasn't yet  been processed).
+In both cases it is necessary to install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase and
+not into C<URI translation> phase (in this phase, F<.htaccess> hasn't yet  been
+processed).
 
 =item *
 
@@ -404,9 +445,9 @@ L<Apache|Apache>, perl(1)
 
 =head2 INTRODUCTION
 
-This section describes use of Apache::SessionManager with PLP. PLP
-(L<http://plp.juerd.nl/>) is yet another Perl embedder, primarily for HTML
-documents. 
+This section describes use of L<Apache::SessionManager|Apache::SessionManager>
+with L<PLP|PLP>. L<PLP|PLP> (L<http://plp.juerd.nl/>) is yet another Perl
+embedder, primarily for HTML documents. 
 
 Unlike with other Perl embedders, there is no need to learn a meta-syntax or
 object model: one can just use the normal Perl constructs. PLP runs under
@@ -420,8 +461,8 @@ The idea is to use a global variable C<$session> in order to store session
 object, and to initialize it into C<start> sub of PLP processor.
 
 To do it, you must patch I<PLP.pm> with following lines (you can find the patch
-also in I<patches/PLP-3.18.patch> shipped with Apache::SessionManager
-distribution):
+also in I<patches/PLP-3.18.patch> shipped with
+L<Apache::SessionManager|Apache::SessionManager> distribution):
 
    --- PLP.pm	Fri Oct 18 21:47:07 2002
    +++ PLP.pm-patched	Fri May 30 11:38:37 2003
@@ -496,8 +537,9 @@ directive directly into an F<.htaccess> file:
    </FilesMatch>
 
 The only difference is that you cannot use C<Location> directive (I used
-C<FilesMatch>) and you must install Apache::SessionManager in C<Header parsing>
-phase of Apache request instead of C<URI translation> phase.
+C<FilesMatch>) and you must install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase of
+Apache request instead of C<URI translation> phase.
 
 =head3 NOTES ON USING F<.htaccess> INSTEAD OF F<httpd.conf>
 
@@ -505,9 +547,10 @@ phase of Apache request instead of C<URI translation> phase.
 
 =item *
 
-In this cases it is necessary to install Apache::SessionManager in C<Header
-parsing> phase and not into C<URI translation> phase (in this phase,
-F<.htaccess> hasn't yet  been processed).
+In this cases it is necessary to install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase and
+not into C<URI translation> phase (in this phase, F<.htaccess> hasn't yet  been
+processed).
 
 =item *
 
@@ -560,10 +603,12 @@ L<Apache|Apache>, perl(1)
 
 =head2 INTRODUCTION
 
-This section describes how to use Apache::SessionManager with Template Toolkit
+This section describes how to use
+L<Apache::SessionManager|Apache::SessionManager> with Template Toolkit
 (L<http://www.tt2.org>). The idea is to use the
 L<Template::Plugin::Apache::SessionManager|Template::Plugin::Apache::SessionManager>
-plugin (available on CPAN), the TT2 wrapper around Apache::SessionManager.
+plugin (available on CPAN), the TT2 wrapper around
+L<Apache::SessionManager|Apache::SessionManager>.
 
 The Template Toolkit is a set of Perl modules which collectively implement a
 template processing system. In this context, a template is a text document
@@ -639,8 +684,9 @@ directives  directly into an F<.htaccess> file:
    </IfModule>   
 
 The only difference is that you cannot use C<Location> directive (I used
-C<FilesMatch>) and you must install Apache::SessionManager in C<Header parsing>
-phase of Apache request instead of C<URI translation> phase.
+C<FilesMatch>) and you must install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase of
+Apache request instead of C<URI translation> phase.
 
 Now you can use C<Template:Plugin::Apache::SessionManager> plugin by 'USE' it
 in tt2 template file. This is a F<session.tt2> TT2 template: 
@@ -717,9 +763,10 @@ This is an example of deleting session keys and destroying session itself:
 
 =item *
 
-In this cases it is necessary to install Apache::SessionManager in C<Header
-parsing>  phase and not into C<URI translation> phase (in this phase,
-F<.htaccess> hasn't yet  been processed).
+In this cases it is necessary to install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing>  phase
+and not into C<URI translation> phase (in this phase, F<.htaccess> hasn't yet 
+been processed).
 
 =item *
 
@@ -830,9 +877,9 @@ L<Apache|Apache>, perl(1)
 
 =head2 INTRODUCTION
 
-This section describes using Apache::SessionManager with simple authentication
-mechanism.  There are many ways to do it; this document will not describe all
-possible configurations. 
+This section describes using L<Apache::SessionManager|Apache::SessionManager>
+with simple authentication mechanism.  There are many ways to do it; this
+document will not describe all possible configurations. 
 
 =head2 CONFIGURATION
 
@@ -894,8 +941,9 @@ directive  directly into an F<.htaccess> file:
    </FilesMatch>
 
 The only difference is that you cannot use C<Location> directive (I used
-C<FilesMatch>) and you must install Apache::SessionManager in C<Header parsing>
-phase of Apache request instead of C<URI translation> phase.
+C<FilesMatch>) and you must install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase of
+Apache request instead of C<URI translation> phase.
 
 =head3 NOTES ON USING F<.htaccess> INSTEAD OF F<httpd.conf>
 
@@ -903,9 +951,10 @@ phase of Apache request instead of C<URI translation> phase.
 
 =item *
 
-In both cases it is necessary to install Apache::SessionManager in C<Header
-parsing>  phase and not into C<URI translation> phase (in this phase,
-F<.htaccess> hasn't yet  been processed).
+In both cases it is necessary to install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing>  phase
+and not into C<URI translation> phase (in this phase, F<.htaccess> hasn't yet 
+been processed).
 
 =item *
 
@@ -1052,13 +1101,13 @@ clients of a Web-hosting company.
 
 =back
 
-This chapter will helps you to use Apache::SessionManager in one of this
-situation.
+This chapter will helps you to use
+L<Apache::SessionManager|Apache::SessionManager> in one of this situation.
 
 =head2 REQUIREMENTS
 
 There are some prerequisites in order to install and use
-Apache::SessionManager without C<root> privileges:
+L<Apache::SessionManager|Apache::SessionManager> without C<root> privileges:
 
 =over 4
 
@@ -1201,9 +1250,10 @@ Also if you cannot install (or run) another C<httpd> instance even at high
 ports (for example > 1024) the only possibilty to use session manager is to
 configure F<.htaccess> file appropriately.
 
-Using F<.htaccess>, you must install Apache::SessionManager in C<Header
-parsing> phase of Apache request instead of C<URI translation> phase. Moreover,
-it is possible to use only cookies for the session tracking.
+Using F<.htaccess>, you must install
+L<Apache::SessionManager|Apache::SessionManager> in C<Header parsing> phase of
+Apache request instead of C<URI translation> phase. Moreover, it is possible to
+use only cookies for the session tracking.
 
 This is an example of how configure F<.htaccess> file for use session (using
 file system as backend datastore) with CGI scripts under 
@@ -1252,7 +1302,8 @@ where you have F<.htaccess> and make it executable by web server.
 
 =head2 INTRODUCTION
 
-This section describes how to use Apache::SessionManager with
+This section describes how to use
+L<Apache::SessionManager|Apache::SessionManager> with
 L<Apache::DBI|Apache::DBI> when using a RDBMS for sessions back-end datastore.
 
 L<Apache::DBI|Apache::DBI> is a useful mod_perl module that caches database
@@ -1266,11 +1317,13 @@ web applications that uses same DB user.
 
 There is no need of extra configuration steps to use advantage of persistent DB
 connections offered by L<Apache::DBI|Apache::DBI> when using
-Apache::SessionManager with a RDBMS as session datastore.
+L<Apache::SessionManager|Apache::SessionManager> with a RDBMS as session
+datastore.
 
 L<Apache::DBI|Apache::DBI> overrides DBI C<connect> and C<disconnect>  methods
 and it intercepts, transparently, all related calls (including
-Apache::SessionManager DBI calls) by returning cached connections, if any. 
+L<Apache::SessionManager|Apache::SessionManager> DBI calls) by returning cached
+connections, if any. 
 
 Simply add a line like:
 
@@ -1346,7 +1399,7 @@ Enrico Sorcinelli <enrico@sorcinelli.it>
 
 =head1 VERSION
 
-0.05
+0.06
 
 =head1 BUGS 
 

@@ -1,8 +1,23 @@
 Revision history for Perl extension Apache::SessionManager.
 
-Legenda: + = new feature, ! = updated feature/bug fix, - = removed feature
+Legenda: 
+	+ = new feature
+	! = updated feature/bug fix
+	* = incompatible changes
+	- = removed feature
 
-1.02    Tue June 19 12:00:00 2004
+1.03    Sun Nov 07 18:00:00 2004
+
+	* Adopted dotted-quad/mask syntax (eg "192.168.0.0/16") when setting 
+	  SessionManagerIPExclude IP exclusion list
+	+ Added remote IP in debug messages
+	+ Added new cookpod section: "Apache::SessionManager WITH CGI::Builder"
+	! Substituted each STDERR prints with $r->log_error mod_perl API calls
+	! Bug fix: SessionManagerHeaderExclude skips check when header or its value
+	  is undefined
+	! Tested also with latest Apache/mod_perl release (2.0.52/1.99_17)
+	
+1.02    Tue Jun 19 12:00:00 2004
 	+ Added SessionManagerHeaderExclude directive in order to exclude
 	  incoming request containing particular header content
 	+ Added SessionManagerIPExclude directive in order to exclude

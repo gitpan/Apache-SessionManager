@@ -1,4 +1,4 @@
-This directory contains various perl modules patch
+This directory contains various perl modules patches
 
 - Apache-Session-File-Lock1.54-patch
 
@@ -9,6 +9,7 @@ To apply the patch do (before installing Apache::Session 1.54):
    $> cd /path/to/src/Apache-Session-1.54
    $> patch -p0 < /path/to/Apache-Session-File-Lock1.54-patch
 
+Note: Since Apache::Session >= 1.60 has been fixed, isn't necessary to patch it.
 
 - PLP-3.18.patch
 

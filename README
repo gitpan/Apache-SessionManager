@@ -1,6 +1,6 @@
 Description
 -----------
-This is version 1.02 of Apache::SessionManager
+This is version 1.03 of Apache::SessionManager
 
 This package is an HTTP session manager.
 Apache::SessionManager is a mod_perl module that helps 
@@ -15,19 +15,16 @@ See perldoc Apache::SessionManager::cookpod for more info about module use
 Changes from previous version
 -----------------------------
 
-	+ Added SessionManagerHeaderExclude directive in order to exclude
-	  incoming request containing particular header content
-	+ Added SessionManagerIPExclude directive in order to exclude
-	  incoming request matching remote IP
-	+ Added compatibilty to libapreq2 (Apache::Cookie API differs from libapreq1
-	  implementation). Thanks to Mike Whitaker <mike@wisdengroup.com> for 
-	  reporting this
-	! Bug fix (since 1.99_14): fix cleanup_register call. Thanks to Blair Sutton 
-	  <bsdz@numeninest.com>
-	! Removed a STDERR debug print
-	! Updated docs and test for new features
+	* Adopted dotted-quad/mask syntax (eg "192.168.0.0/16") when setting 
+	  SessionManagerIPExclude IP exclusion list
+	+ Added remote IP in debug messages
+	+ Added new cookpod section: "Apache::SessionManager WITH CGI::Builder"
+	! Substituted each STDERR prints with $r->log_error mod_perl API calls
+	! Bug fix: SessionManagerHeaderExclude skips check when header or its value
+	  is undefined
+	! Tested also with latest Apache/mod_perl release (2.0.52/1.99_17)
 	
-See 'Changes' file for history revisions.
+See 'Changes' file for complete history revisions.
 
 Installation
 ------------

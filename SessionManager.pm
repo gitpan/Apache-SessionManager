@@ -13,7 +13,7 @@ require 5.005;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 use mod_perl;
 use Apache::Session::Flex;
@@ -63,7 +63,7 @@ sub handler {
 
 	return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED) unless $r->is_initial_req;
 
-	my $debug_prefix = "SessionManager ($$):";
+	my $debug_prefix = '[' . $r->connection->remote_ip . "] SessionManager ($$): ";
 	$session_config{'SessionManagerDebug'} = $r->dir_config('SessionManagerDebug') || 0;
 	foreach ( qw/SessionManagerURITracking SessionManagerTracking SessionManagerEnableModBackhand 
 		          SessionManagerStoreArgs SessionManagerCookieArgs SessionManagerSetEnv SessionManagerExpire 
@@ -71,11 +71,13 @@ sub handler {
 		$session_config{$_} = $r->dir_config($_);
 	}
 
-	print STDERR "$debug_prefix ---START REQUEST: " .  $r->uri . " ---\n" if $session_config{'SessionManagerDebug'} > 0;
+	$r->log_error($debug_prefix . '---START REQUEST: ' .  $r->uri . ' ---') if $session_config{'SessionManagerDebug'} > 0;
+	#print STDERR "$debug_prefix ---START REQUEST: " .  $r->uri . " ---\n" if $session_config{'SessionManagerDebug'} > 0;
 
 	# Get and remove session ID from URI
 	if ( $session_config{'SessionManagerURITracking'} eq 'On' ) {
-		print STDERR "$debug_prefix start URI " . $r->uri . "\n" if $session_config{'SessionManagerDebug'} > 0;
+		$r->log_error($debug_prefix . 'start URI ' . $r->uri) if $session_config{'SessionManagerDebug'} > 0;
+		#print STDERR "$debug_prefix start URI " . $r->uri . "\n" if $session_config{'SessionManagerDebug'} > 0;
 	
 		# retrieve session ID from URL (or HTTP 'Referer:' header)
 		my (undef, $uri_session_id, $rest) = split /\/+/, $r->uri, 3;
@@ -84,7 +86,8 @@ sub handler {
 			$session_id = $uri_session_id;
 			# Remove the session from the URI
 			$r->uri("/$rest");
-			print STDERR "$debug_prefix end URI " . $r->uri . "\n" if $session_config{'SessionManagerDebug'} > 0;			
+			$r->log_error($debug_prefix . 'end URI ' . $r->uri) if $session_config{'SessionManagerDebug'} > 0;
+			#print STDERR "$debug_prefix end URI " . $r->uri . "\n" if $session_config{'SessionManagerDebug'} > 0;
 		}
 	}
 	
@@ -92,13 +95,20 @@ sub handler {
 	return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED) unless ( $session_config{'SessionManagerTracking'} eq 'On' );
 
 	# declines requests matching IP exclusion list
-	foreach ( split(/\s+/,$session_config{'SessionManagerIPExclude'}) ) {
-		return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED) if ( $r->connection->remote_ip =~ /^$_/ ); 
+	if ( $session_config{'SessionManagerIPExclude'} ) {
+		require Socket;
+		foreach ( split(/\s+/,$session_config{'SessionManagerIPExclude'}) ) {
+			$r->log_error($debug_prefix . '_isInRange(' . $r->connection->remote_ip . ",$_)") if $session_config{'SessionManagerDebug'} >= 5;
+			#print STDERR "$debug_prefix _isInRange(" . $r->connection->remote_ip . ",$_)\n" if $session_config{'SessionManagerDebug'} >= 5;
+			return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED) if _isInRange($r->connection->remote_ip,$_); 
+		}
 	}
 
-	# declines requests matching any of exclusions headers 
+	# declines requests matching any of exclusions headers
 	foreach my $header ( $r->dir_config->get('SessionManagerHeaderExclude') ) {
 		my ($key,$value) = split(/\s*=\s*>\s*/,$header,2);
+		# Header and its value must exists in order to check it
+		next unless ($r->headers_in->{$key} && $value);
 		if ( $r->headers_in->{$key} =~ /$value/i ) {
 			return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED)
 		}
@@ -121,10 +131,13 @@ sub handler {
 	$session_config{'SessionManagerInactivity'} = ( $r->dir_config('SessionManagerInactivity') =~ /^\d+$/ ) ? $r->dir_config('SessionManagerInactivity') : undef;
 	$session_config{'SessionManagerName'} = $r->dir_config('SessionManagerName') || 'PERLSESSIONID';
 
+	# Print SesssionManager configs to error_log
 	if ( $session_config{'SessionManagerDebug'} >= 3 ) {
-		print STDERR "$debug_prefix configuration settings\n";
+		$r->log_error($debug_prefix . 'configuration settings:');
+		#print STDERR "$debug_prefix configuration settings\n";
 		foreach (sort keys %session_config)	{
-			print STDERR "\t$_ = $session_config{$_}\n";
+			$r->log_error($debug_prefix . ' ' x 8 . "$_ = $session_config{$_}");
+			#print STDERR "\t$_ = $session_config{$_}\n";
 		}
 	}
 
@@ -133,16 +146,18 @@ sub handler {
 
 		if ( $libapreq ) {
 			# Test libapreq 1 or 2 version to use correct 'fetch' API
-			my %cookies = $Apache::Request::VERSION >= 2 ? Apache::Cookie->fetch($r) : Apache::Cookie->fetch; 
+			my %cookies = $Apache::Request::VERSION >= 2 ? Apache::Cookie->fetch($r) : Apache::Cookie->fetch;
 			$session_id = $cookies{$session_config{'SessionManagerName'}}->value if defined $cookies{$session_config{'SessionManagerName'}};
-			print STDERR "$debug_prefix Apache::Cookie fetch\n" if $session_config{'SessionManagerDebug'} >= 5;
+			$r->log_error($debug_prefix . 'Apache::Cookie fetch') if $session_config{'SessionManagerDebug'} >= 5;
+			#print STDERR "$debug_prefix Apache::Cookie fetch\n" if $session_config{'SessionManagerDebug'} >= 5;
 		}
 		# Fetch cookies with CGI::Cookie				
 		else {
 			# At this phase (HeaderParser | Translation), no $ENV{'COOKIE'} var is set, so we use CGI::Cookie parse method by passing 'Cookie' HTTP header
 			my %cookies = CGI::Cookie->parse($r->headers_in->{'Cookie'});
 			$session_id = $cookies{$session_config{'SessionManagerName'}}->value if defined $cookies{$session_config{'SessionManagerName'}};
-			print STDERR "$debug_prefix CGI::Cookie fetch\n" if $session_config{'SessionManagerDebug'} >= 5;
+			$r->log_error($debug_prefix . 'CGI::Cookie fetch') if $session_config{'SessionManagerDebug'} >= 5;
+			#print STDERR "$debug_prefix CGI::Cookie fetch\n" if $session_config{'SessionManagerDebug'} >= 5;
 		}
 	}
 
@@ -161,9 +176,11 @@ sub handler {
 	}
 
 	if ( $session_config{'SessionManagerDebug'} >= 5 ) {
-		print STDERR "$debug_prefix Apache::Session::Flex options\n";
+		$r->log_error($debug_prefix . 'Apache::Session::Flex options:');
+		#print STDERR "$debug_prefix Apache::Session::Flex options\n";
 		foreach (sort keys %apache_session_flex_options)	{
-		   print STDERR "\t$_ = $apache_session_flex_options{$_}\n";
+			$r->log_error($debug_prefix . ' ' x 8 . "$_ = $apache_session_flex_options{$_}");
+			# print STDERR "\t$_ = $apache_session_flex_options{$_}\n";
 		}
 	}
 
@@ -171,11 +188,11 @@ sub handler {
 	$session_id = substr($session_id,8) if ( $session_config{'SessionManagerEnableModBackhand'} eq 'On' );
 	 
 	# Try to retrieve session object from session ID
-	my $res = _tieSession(\%session, $session_id, \%apache_session_flex_options,$session_config{'SessionManagerDebug'});
+	my $res = _tieSession($r,\%session, $session_id, \%apache_session_flex_options,$session_config{'SessionManagerDebug'},$debug_prefix);
 
 	# Session ID not found or invalid session: a new object session will be create
 	if ($res) {
-		my $res = _tieSession(\%session, undef, \%apache_session_flex_options,$session_config{'SessionManagerDebug'});
+		my $res = _tieSession($r,\%session, undef, \%apache_session_flex_options,$session_config{'SessionManagerDebug'},$debug_prefix);
 		$session_id = undef;
 	}
 
@@ -184,17 +201,20 @@ sub handler {
 
 	# session's expiration date check only for existing sessions
 	if ( $session_id ) {
-		print STDERR "$debug_prefix  checking TTL session, ID = $session_id ($session{'_session_timestamp'})\n" if $session_config{'SessionManagerDebug'} > 0;
+		$r->log_error($debug_prefix . "checking TTL session, ID = $session_id ($session{'_session_timestamp'})") if $session_config{'SessionManagerDebug'} > 0;
+		#print STDERR "$debug_prefix  checking TTL session, ID = $session_id ($session{'_session_timestamp'})\n" if $session_config{'SessionManagerDebug'} > 0;
+
 		# Session TTL expired: a new object session is create
 		if ( ( $session_config{'SessionManagerInactivity'} && 
 		       (time - $session{'_session_timestamp'}) > $session_config{'SessionManagerInactivity'} ) 
 			  || 
 			  ( $session_config{'SessionManagerExpire'} && 
 			    (time - $session{'_session_start'}) > $session_config{'SessionManagerExpire'} ) ) {
-			print STDERR "$debug_prefix session to delete\n" if $session_config{'SessionManagerDebug'} > 0;
+			$r->log_error($debug_prefix . 'session to delete') if $session_config{'SessionManagerDebug'} > 0;
+			#print STDERR "$debug_prefix session to delete\n" if $session_config{'SessionManagerDebug'} > 0;
 			tied(%session)->delete;
 			
-			my $res = _tieSession(\%session, undef, \%apache_session_flex_options,$session_config{'SessionManagerDebug'});
+			my $res = _tieSession($r,\%session, undef, \%apache_session_flex_options,$session_config{'SessionManagerDebug'},$debug_prefix);
 
 			$session_id = undef;
 			$session{'_session_start'} = time;
@@ -224,13 +244,16 @@ sub handler {
 
 		# redirect to embedded session ID URI...
 		if ( $session_config{'SessionManagerURITracking'} eq 'On' ) {
-			print STDERR "$debug_prefix URI redirect...\n" if $session_config{'SessionManagerDebug'} > 0;
+			$r->log_error($debug_prefix . 'URI redirect...') if $session_config{'SessionManagerDebug'} > 0;
+			#print STDERR "$debug_prefix URI redirect...\n" if $session_config{'SessionManagerDebug'} > 0;
 			_redirect($r,$session_id);
 			return MP2 ? Apache::REDIRECT : Apache::Constants::REDIRECT;
 		}
 		# ...or send cookie to browser
 		else {
-			print STDERR "$debug_prefix sending cookie...\n" if $session_config{'SessionManagerDebug'} > 0;
+			$r->log_error($debug_prefix . 'sending cookie...') if $session_config{'SessionManagerDebug'} > 0;
+			#print STDERR "$debug_prefix sending cookie...\n" if $session_config{'SessionManagerDebug'} > 0;
+			
 			# Load cookie specific parameters
 			foreach my $arg ( split(/\s*,\s*/,$session_config{'SessionManagerCookieArgs'}) ) {
 				my ($key,$value) = split(/\s*=>\s*/,$arg);
@@ -241,9 +264,11 @@ sub handler {
 			$cookie_options{'-path'} = '/' unless $cookie_options{'-path'};
 			
 			if ( $session_config{'SessionManagerDebug'} >= 5 ) {
-				print STDERR "$debug_prefix Cookie options\n";
+				$r->log_error($debug_prefix . 'Cookie options:');
+				#print STDERR "$debug_prefix Cookie options\n";
 				foreach (sort keys %cookie_options)	{
-				   print STDERR "\t$_ = $cookie_options{$_}\n";
+					$r->log_error($debug_prefix . ' ' x 8 . "$_ = $cookie_options{$_}");
+					#print STDERR "\t$_ = $cookie_options{$_}\n";
 				}
 			}
 
@@ -253,26 +278,29 @@ sub handler {
 					name => $session_config{'SessionManagerName'},
 					value => $session_id,
 					%cookie_options
-				  );
+				);
 				$cookie->bake;
 				
-				print STDERR ("$debug_prefix Apache::Cookie bake " . $cookie->as_string . "\n") if $session_config{'SessionManagerDebug'} >= 5;
-	      }
+				$r->log_error($debug_prefix . 'Apache::Cookie bake ' . $cookie->as_string) if $session_config{'SessionManagerDebug'} >= 5;
+				#print STDERR ("$debug_prefix Apache::Cookie bake " . $cookie->as_string . "\n") if $session_config{'SessionManagerDebug'} >= 5;
+			}
 			# Set cookie with CGI::Cookie
 			else {
 				my $cookie = CGI::Cookie->new(
 					-name => $session_config{'SessionManagerName'},
 					-value => $session_id,
 					%cookie_options
-				  );
+				);
 				$r->err_headers_out->{'Set-Cookie'} = "$cookie";
 				
-				print STDERR "$debug_prefix CGI::Cookie bake $cookie\n" if $session_config{'SessionManagerDebug'} >= 5;
+				$r->log_error($debug_prefix . "CGI::Cookie bake $cookie") if $session_config{'SessionManagerDebug'} >= 5;
+				#print STDERR "$debug_prefix CGI::Cookie bake $cookie\n" if $session_config{'SessionManagerDebug'} >= 5;
 			}
 		}
 	}
-	
-	print STDERR "$debug_prefix ---END REQUEST---\n" if $session_config{'SessionManagerDebug'} > 0;
+
+	$r->log_error($debug_prefix . '---END REQUEST---') if $session_config{'SessionManagerDebug'} > 0;
+	#print STDERR "$debug_prefix ---END REQUEST---\n" if $session_config{'SessionManagerDebug'} > 0;
 		
 	return MP2 ? Apache::DECLINED : Apache::Constants::DECLINED;
 }
@@ -333,11 +361,12 @@ sub destroy_session {
 }
 
 sub _tieSession {
-	my ($session_ref,$id,$options,$debug) = @_;
+	my ($r,$session_ref,$id,$options,$debug,$debug_prefix) = @_;
 	eval {
 		tie %{$session_ref}, 'Apache::Session::Flex', $id, $options;
 	};
-	print STDERR "Tied session ID = $$session_ref{_session_id}\n$@" if $debug >= 3 ;
+	$r->log_error($debug_prefix . "Tied session ID = $$session_ref{_session_id}$@") if $debug >= 3;
+	#print STDERR "Tied session ID = $$session_ref{_session_id}\n$@" if $debug >= 3;
 	return $@ if $@;
 }
 
@@ -364,6 +393,17 @@ sub _redirect {
 		$redirect .= '/';
 	}
 	$r->headers_out->{'Location'} = $redirect;
+}
+
+sub _isInRange {
+	my ($addr,$base) = @_;
+	my $bits;
+	($base, $bits) = split /[\/:]/, $base;
+	return ( (4 == grep { $_ < 256 && /^\d+$/ } split(/\./, $base)) 
+	         && (4 == grep { $_ < 256 && /^\d+$/ } split(/\./, $addr)) 
+	         && ($bits =~ /^\d*$/ && $bits <= 32)
+				&& ((unpack("N", Socket::inet_aton($base)) >> (32 - $bits)) == (unpack ("N", Socket::inet_aton($addr)) >> (32 - $bits)))
+	       ) ? 1 : 0;
 }
 	
 1;
@@ -413,11 +453,19 @@ In F<httpd.conf> (mod_perl 2):
       PerlSetVar SessionManagerStoreArgs "Directory => /tmp/apache_sessions"
    </Location>  
 
+In a mod_perl module handler:
+
+   sub handler {
+      my $r = shift;
+      my $session = Apache::SessionManager::get_session($r);
+      ...
+   }
+
 =head1 DESCRIPTION
 
 Apache::SessionManager is a mod_perl (1.0 and 2.0) module that helps session
-management  of a web application. This module is a wrapper around
-L<Apache::Session|Apache::Session> persistence  framework for session data. It
+management of a web application. This module is a wrapper around
+L<Apache::Session|Apache::Session> persistence framework for session data. It
 creates a session object and makes it available to all other handlers 
 transparenlty by putting it in pnotes. In a mod_perl handlers you can retrieve 
 the session object directly from pnotes with predefined key 
@@ -436,6 +484,10 @@ or it is possible to read value session with:
    print "$$session{'key'}";
    # same as
    print $session->{'key'};	
+
+Apache::SessionManager is intended also to use within thirdy part packages.
+See L<Apache::SessionManager::cookpod|Apache::SessionManager::cookpod> for more
+info.
 
 =head1 MOD_PERL 2 COMPATIBILITY
 
@@ -926,18 +978,24 @@ the session ID.
 
 =item C<SessionManagerIPExclude> IP-list
 
-Matchs client IP addresses against IP list and declines request. For example:
+Matchs client IP addresses against IP list and declines request.
+It's possible to set an IP address and optionally a bitmask:
 
-   PerlSetVar SessionManagerIPExclude "127.0.0. 192.168. 195.31.218.3"
+233.76.193.0/24
 
-The match is very simple so it isn't possible to set IP range like:
-   
-   192.168.0.0/16
+233.76.193.1/32 (or simply 233.76.193.1)
+
+For example:
+
+   PerlSetVar SessionManagerIPExclude "127.0.0.0/8 192.168.0.0/16 195.31.218.3"
+
+Note that since C<1.03> Apache::SessionManager version, non dotted-quad IP
+will be skipped.
 
 =item C<SessionManagerSetEnv> On|Off
 
-This single directive set the C<SESSION_MANAGER_SID> environment variable with
-the current (valid) session ID:
+Sets the C<SESSION_MANAGER_SID> environment variable with the current (valid)
+session ID:
 
    PerlSetVar SessionManagerSetEnv On
 
@@ -1098,6 +1156,10 @@ Apache live tests.
 
 =over 4
 
+=item *
+
+Use Apache::Test instead of Apache::testold for testing
+
 =item * 
 
 Add the possibility of auto-switch session ID tracking  from cookie to URI in
@@ -1149,7 +1211,7 @@ Patches are welcome and I'll update the module if any problems will be found.
 
 =head1 VERSION
 
-Version 1.02
+Version 1.03
 
 =head1 SEE ALSO
 
