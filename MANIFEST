@@ -12,4 +12,5 @@ t/lib/PrintEnvOO.pm
 t/lib/MyAuth.pm
 patches/Apache-Session-File-Lock1.54-patch
 patches/PLP-3.18.patch
+patches/README
 META.yml                                 Module meta-data (added by MakeMaker)

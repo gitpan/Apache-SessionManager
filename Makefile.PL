@@ -129,6 +129,7 @@ unless ( $opt_n ) {
 		}
 		else {
 			print "\n*** Configuring test under Apache::testold suite...\n";
+			print "*** Note that Apache::testold suite can run only under Apache 1.x/mod_perl 1.x\n";
 			# Currently, there is only Apache::testold tests :-(...
 			require Apache::testold;
 			my %params = Apache::testold->get_test_params();

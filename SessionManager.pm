@@ -13,7 +13,7 @@ require 5.005;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '1.00';
+$VERSION = '1.01';
 
 use mod_perl;
 use Apache::Session::Flex;
@@ -34,9 +34,11 @@ BEGIN {
 		require Apache::Const;
 		Apache::Const->import(-compile => qw(DECLINED REDIRECT));
 		require Apache::RequestRec;
+		require Apache::SubRequest;
 		require Apache::RequestUtil;
-		require APR::Pool;
+		require APR::Pool;           # for cleanup_register
 		require APR::URI;
+		require Apache::URI;
 	}
 	else {
 		require Apache::Constants;
@@ -63,7 +65,8 @@ sub handler {
 
 	my $debug_prefix = "SessionManager ($$):";
 	$session_config{'SessionManagerDebug'} = $r->dir_config('SessionManagerDebug') || 0;
-	foreach ( qw/SessionManagerURITracking SessionManagerTracking SessionManagerEnableModBackhand SessionManagerStoreArgs SessionManagerCookieArgs SessionManagerSetEnv SessionManagerExpire/ ) {
+	foreach ( qw/SessionManagerURITracking SessionManagerTracking SessionManagerEnableModBackhand SessionManagerStoreArgs 
+		          SessionManagerCookieArgs SessionManagerSetEnv SessionManagerExpire/ ) {
 		$session_config{$_} = $r->dir_config($_);
 	}
 
@@ -333,18 +336,19 @@ sub _redirect {
 	$args = '?' . $args if $args;
 	$r->content_type('text/html');
  
-	# "suggest by Gerald Richter / Matt Sergeant to add scheme://hostname:port to redirect" (Greg's note)
-	my $uri = MP2 ? APR::URI->parse($r->pool) : Apache::URI->parse($r);
- 
-	# hostinfo give port if necessary - otherwise not
+	# "suggest by Gerald Richter / Matt Sergeant to add scheme://hostname:port to redirect" (Greg's original note)
+	my $uri = MP2 ? APR::URI->parse($r->pool,$r->construct_url) : Apache::URI->parse($r);
+
+ 	# hostinfo give port if necessary - otherwise not
 	my $hostinfo = $uri->hostinfo;
 	my $scheme =  $uri->scheme . '://';
-	$session_id .= '/' if ($session_id);
+	$session_id .= '/' if $session_id;
 	$redirect = $scheme . $hostinfo . '/'. $session_id . $rest . $args;
 	# if no slash and it's a dir add a slash
 	if ($redirect !~ m#/$# && -d $r->lookup_uri($redirect)->filename) {
 		$redirect .= '/';
 	}
+	print STDERR "$redirect\n";
 	$r->headers_out->{'Location'} = $redirect;
 }
 	
@@ -1098,7 +1102,7 @@ Patches are welcome and I'll update the module if any problems  will be found.
 
 =head1 VERSION
 
-Version 1.00
+Version 1.01
 
 =head1 SEE ALSO
 

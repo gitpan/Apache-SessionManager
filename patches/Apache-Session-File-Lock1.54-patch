@@ -1,5 +1,5 @@
---- File.pm	Thu Jul 18 18:08:46 2002
-+++ File.pm-patched	Thu Jul 18 18:07:31 2002
+--- Session/Lock/File.pm	2004-01-23 16:29:20.000000000 +0100
++++ Session/Lock/File.pm-patched	2004-01-23 16:29:13.000000000 +0100
 @@ -133,7 +133,7 @@
      my @files = readdir(DIR);
      foreach my $file (@files) {
