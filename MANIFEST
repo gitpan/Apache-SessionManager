@@ -1,0 +1,8 @@
+Changes
+MANIFEST
+README
+Makefile.PL
+SessionManager.pm
+t/00base.t
+t/01real.t
+t/lib/PrintEnv.pm

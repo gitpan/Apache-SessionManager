@@ -1,0 +1,25 @@
+Revision history for Perl extension Apache::SessionManager.
+
+0.01_1  Tue Apr 30 17:18:13 2002
+	+ original version; created by h2xs 1.20 with options
+		-X -n Apache::SessionManager
+
+0.01_2  Fri Aug 02 14:00:00 2002
+	+ Write test suite with Apache::test
+	+ Updated docs
+	+ Released as RFC to mod_perl community
+	
+0.01_3  Tue Aug 20 14:00:00 2002
+	+ Use Apache::Session:Flex to configure
+	  datastore on the fly (in httpd.conf with
+	  PerlSetVar directives)
+	+ Updated docs and test
+	
+0.01_4  Tue Aug 21 14:00:00 2002
+	+ Add support to embed session ID in URI other 
+	  than in cookie
+	+ Updated docs and test for URI session ID tracking
+
+0.01    Fri Aug 23 14:00:00 2002
+	+ Few minor changes
+	+ Updated docs
