@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-Apache::SessionManager cookpod
+Apache::SessionManager::cookpod - Session management Cookpod with Apache::SessionManager
 
 =head1 INTRODUCTION
 
@@ -995,7 +995,7 @@ Enrico Sorcinelli <enrico@sorcinelli.it>
 
 =head1 VERSION
 
-0.01
+0.02
 
 =head1 BUGS 
 

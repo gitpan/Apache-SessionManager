@@ -16,7 +16,7 @@ use Apache::URI ();
 use Apache::Session::Flex;
 
 use vars qw($VERSION);
-$VERSION = '0.05';
+$VERSION = '0.06';
 
 # Test libapreq modules
 my $libapreq;
@@ -283,7 +283,7 @@ sub _redirect {
 } 
 
 1;
-#__END__
+__END__
 
 =pod 
 

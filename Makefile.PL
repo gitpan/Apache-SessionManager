@@ -6,7 +6,8 @@ my $necessary_modules = {
 };
 
 my $optional_modules = {
-	'Apache::Request' => 'Apache API to manage HTTP cookies'
+	'Apache::Request' => 'Apache API to manage HTTP cookies',
+	'CGI::Cookie' => 'CGI lib manage HTTP cookies'
 };
 
 print "Checking for the REQUIRED modules...\n";
@@ -58,10 +59,9 @@ my $CPAN = <<CPAN;
 
 -=-= CPAN HELP =-=-
 
-There are many modules that have to be installed in order
-to begin using Apache::SessionManager. The easiest way to install
-modules is with CPAN.pm.  To use its command line shell,
-execute the following: 
+There are many modules that have to be installed in order to begin using
+Apache::SessionManager. The easiest way to install modules is with CPAN.pm.
+To use its command line shell, execute the following: 
 
 % perl -MCPAN -eshell
 
@@ -69,8 +69,8 @@ Then to install any required modules, like Apache::Session:
 
   cpan> install Apache::Session
 
-and cpan will do this for you.  For more
-information, please view the CPAN docs with:
+and cpan will do this for you. For more information, please view the CPAN 
+docs with:
 
 % perldoc CPAN
 
@@ -78,16 +78,18 @@ information, please view the CPAN docs with:
 
 CPAN
 
-if($errors) {
-	print "\nExiting now because of errors!\n";
+if ($errors) {
+	print "\n***\n*** Required modules not founded!\n***\n";
+#	print "\nExiting now because of errors!\n";
 	print $CPAN,"\n";
-	exit;
+#	exit;
 } 
-elsif($warnings) {
+elsif ($warnings) {
 	print $CPAN;
 } 
-
-print "Required modules founded!\n";
+else {
+	print "\nRequired modules founded!\n";
+}
 
 # Apache / mod_perl test
 eval { require Apache::test };

@@ -1,6 +1,6 @@
 Description
 -----------
-This is version 0.05 of Apache::SessionManager
+This is version 0.06 of Apache::SessionManager
 
 This package is an HTTP session manager.
 Apache::SessionManager is a mod_perl module that helps 
@@ -15,20 +15,11 @@ See perldoc Apache::SessionManager::cookpod for more info about module use
 Changes from previous version
 -----------------------------
 
-	+ Added syntax control over SessionManagerExpire directive. A explicit '0' 
-	  value means no expiration time (if undefined the default value is 3600)
-	+ Added syntax control over SessionManagerInactivity directive
-	+ Removed dependency from Apache::Cookie. CGI::Cookie will be used instead
-	  of Apache::Cookie if libapreq aren't installed
-	+ Added Apache::SessionManager::cookpod pod HOWTO 
-	+ Added PLP.pm patch (patches/PLP-3.18.patch) to add direcly $session into 
-	  PLP Perl embedder
-	+ Added patch (patches/Apache-Session-1.54-patch) for Apache::Session::Lock::File
-	+ Added authentication test handler t/lib/MyAuth.pm to show how Apache::SessionManager 
-     can work with authentication (see perldoc Apache::SessionManager::cookpod)
-	! Modified test handler t/lib/PrintEnv.pm to print $session dump
-	! Update module docs, added sections
-	! Updated test and docs
+	! Removed an exit() command from Makefile.PL in order to work with cpan/cpanplus
+	  shell when auto-installing required modules
+	! Update NAME section in cookpod to Apache::SessionManager::cookpod
+	! Minor corrections to cookpod 
+	! Uncommentend  __END__ line in SessionManager.pm - why it was commented? :-)
 
 Installation
 ------------

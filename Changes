@@ -49,8 +49,8 @@ Revision history for Perl extension Apache::SessionManager.
 	  <jlatour@www.arens.nl>) 
 	! Updated t/01real.t in order to skip it if 'use Apache::test' fails.
 
-0.05    The Jul 10 20:00:00 2003
-	+ Added syntax control over SessionManagerExpire directive. A explicit '0' 
+0.05    Thu Jul 10 20:00:00 2003
+	+ Added syntax control over SessionManagerExpire directive. An explicit '0' 
 	  value means no expiration time (if undefined the default value is 3600)
 	+ Added syntax control over SessionManagerInactivity directive
 	+ Removed dependency from Apache::Cookie. CGI::Cookie will be used instead
@@ -60,7 +60,14 @@ Revision history for Perl extension Apache::SessionManager.
 	  PLP Perl embedder
 	+ Added patch (patches/Apache-Session-1.54-patch) for Apache::Session::Lock::File
 	+ Added authentication test handler t/lib/MyAuth.pm to show how Apache::SessionManager 
-     can work with authentication (see perldoc Apache::SessionManager::cookpod)
+	  can work with authentication (see perldoc Apache::SessionManager::cookpod)
 	! Modified test handler t/lib/PrintEnv.pm to print $session dump
-	! Update module docs, added sections
+	! Updated module docs, added sections
 	! Updated test and docs
+
+0.06    Mon Jul 28 17:00:00 2003
+	! Removed an exit() command from Makefile.PL in order to work with cpan/cpanplus
+	  shell when auto-installing required modules
+	! Update NAME section in cookpod to Apache::SessionManager::cookpod
+	! Minor corrections to cookpod 
+	! Uncommentend __END__ line in SessionManager.pm - why it was commented? :-)
