@@ -2,11 +2,12 @@
 
 my $necessary_modules = {
 	'Apache' => 'The Apache Perl API',
-	'Apache::Request' => 'Apache API to manage HTTP cookies',
 	'Apache::Session' => 'A persistence framework for session data'
 };
 
-my $optional_modules = {};
+my $optional_modules = {
+	'Apache::Request' => 'Apache API to manage HTTP cookies'
+};
 
 print "Checking for the REQUIRED modules...\n";
 my($errors, $warnings);
@@ -107,7 +108,7 @@ WriteMakefile(
 	'PREREQ_PM'		=> {
                       "mod_perl"        => "1.24",
                       "Apache::Session" => "1.54",
-                      "Apache::Request" => "0.33",
+                      #"Apache::Request" => "0.33",
                      }, # e.g., Module::Name => 1.1
 	'clean'        => {FILES => 't/httpd.conf t/error_log t/httpd'},							
 );
@@ -125,10 +126,26 @@ PerlSetVar SessionManagerDebug 5
 	PerlHandler PrintEnv
 	PerlSetVar SessionManagerStore File
 	PerlSetVar SessionManagerLock File
-	PerlSetVar SessionManagerCookieArgs "Path => /session, Secure => 1, Extras => some_value"
-	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
-	                                    LockDirectory => /tmp"
+	PerlSetVar SessionManagerCookieArgs "Path => /session, Secure => 0, Extras => some_value"
+	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerSetEnv On
+</Location>
+
+# These documents require cookies session w/authentication
+<Location /session-auth>
+	SetHandler perl-script
+	PerlHandler PrintEnv
+	PerlSetVar SessionManagerStore File
+	PerlSetVar SessionManagerLock File
+	PerlSetVar SessionManagerCookieArgs "Path => /session-auth, Secure => 0"
+	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
+	PerlSetVar SessionManagerSetEnv On
+
+	AuthName "Reserved Club"
+	AuthType Basic
+	require valid-user
+	PerlAuthenHandler MyAuth
+	PerlSetVar MyAuthLogin /protected/login.html 
 </Location>
 
 # These documents URI tracking session
@@ -138,8 +155,7 @@ PerlSetVar SessionManagerDebug 5
 	PerlSetVar SessionManagerURITracking On
 	PerlSetVar SessionManagerStore File
 	PerlSetVar SessionManagerLock File
-	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
-	                                    LockDirectory => /tmp"
+	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerSetEnv On
 </LocationMatch>
 
@@ -149,8 +165,8 @@ PerlSetVar SessionManagerDebug 5
 	PerlHandler PrintEnv
 	PerlSetVar SessionManagerStore File
 	PerlSetVar SessionManagerLock File
-	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
-	                                    LockDirectory => /tmp"
+	PerlSetVar SessionManagerCookieArgs "Path => /session-bh"
+	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerEnableModBackhand On
 	PerlSetVar SessionManagerSetEnv On
 </Location>

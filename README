@@ -1,8 +1,8 @@
 Description
 -----------
-This is version 0.04 of Apache::SessionManager
+This is version 0.05 of Apache::SessionManager
 
-This package contains an Apache mod_perl module to manage HTTP sessions.
+This package is an HTTP session manager.
 Apache::SessionManager is a mod_perl module that helps 
 session management of a web application. This simple module is a 
 wrapper around Apache::Session persistence framework for session data.
@@ -10,18 +10,25 @@ It creates a session object and makes it available to all other handlers
 transparenlty by putting it in pnotes. 
 
 See perldoc Apache::SessionManager for module documentation and use
+See perldoc Apache::SessionManager::cookpod for more info about module use
 
 Changes from previous version
 -----------------------------
 
-This is a maintenance release. It fix some problems 
-of test suite.
-
-	+ Set '/' as default path attribute for session cookies
-	! Updated Makefile.PL in order to skip generation of Apache test section
-	  in Makefile if 'use Apache::test' fails (notice by Jeroen Latour 
-	  <jlatour@www.arens.nl>) 
-	! Updated t/01real.t in order to skip it if 'use Apache::test' fails.
+	+ Added syntax control over SessionManagerExpire directive. A explicit '0' 
+	  value means no expiration time (if undefined the default value is 3600)
+	+ Added syntax control over SessionManagerInactivity directive
+	+ Removed dependency from Apache::Cookie. CGI::Cookie will be used instead
+	  of Apache::Cookie if libapreq aren't installed
+	+ Added Apache::SessionManager::cookpod pod HOWTO 
+	+ Added PLP.pm patch (patches/PLP-3.18.patch) to add direcly $session into 
+	  PLP Perl embedder
+	+ Added patch (patches/Apache-Session-1.54-patch) for Apache::Session::Lock::File
+	+ Added authentication test handler t/lib/MyAuth.pm to show how Apache::SessionManager 
+     can work with authentication (see perldoc Apache::SessionManager::cookpod)
+	! Modified test handler t/lib/PrintEnv.pm to print $session dump
+	! Update module docs, added sections
+	! Updated test and docs
 
 Installation
 ------------
@@ -37,13 +44,15 @@ In order to install and use this package you will need Perl version
 
 Prerequisites
 -------------
-- mod_perl (of course) >= 1.24 with the appropriate call-back hooks (PERL_TRANS=1)
-- Apache::Request >= 0.33 (libapreq) is required 
-     (http://www.cpan.org/modules/by-module/Apache/libapreq-x.yy.tar.gz)
+- mod_perl (of course) >= 1.24 with the appropriate call-back hooks (PERL_TRANS=1,
+  PERL_HEADER_PARSER=1)
 - Apache::Session >= 0.53 is required
      (http://www.cpan.org/modules/by-module/Apache/Apache-Session-x.yy.tar.gz)
-
-Copyright (C) 2001,2002 Enrico Sorcinelli. All rights reserved.
+- Apache::Request >= 0.33 (libapreq) is preferred but not required. If not
+     present CGI::Cookie will be used instead.
+     (http://www.cpan.org/modules/by-module/Apache/libapreq-x.yy.tar.gz)
+  
+Copyright (C) 2001-2003 Enrico Sorcinelli. All rights reserved.
 This program is free software; you can redistribute it 
 and/or modify it under the same terms as Perl itself. 
 

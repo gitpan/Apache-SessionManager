@@ -39,10 +39,16 @@ my %requests = (
 	        uri     => '/no-session',
 	        method  => 'GET',
 	       },
+   # mod_perl test module: authentication
+	5  => { 
+	        uri     => '/session-auth',
+	        method  => 'GET',
+	       },
 );
 
 print "1.." . (keys %requests) . "\n";
 
+Apache::test->test(++$TEST_NUM, 1);
 Apache::test->test(++$TEST_NUM, 1);
 Apache::test->test(++$TEST_NUM, 1);
 Apache::test->test(++$TEST_NUM, 1);

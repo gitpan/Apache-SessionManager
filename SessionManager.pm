@@ -12,12 +12,24 @@ package Apache::SessionManager;
 require 5.005;
 use strict;
 use Apache::Constants qw(:common REDIRECT);
-use Apache::Cookie ();
 use Apache::URI ();
 use Apache::Session::Flex;
 
 use vars qw($VERSION);
-$VERSION = '0.04';
+$VERSION = '0.05';
+
+# Test libapreq modules
+my $libapreq;
+BEGIN {
+	eval { require Apache::Cookie; Apache::Cookie->can('bake'); Apache::Cookie->can('fetch') };
+	if ($@) {
+		require CGI::Cookie;
+		$libapreq = 0;
+	}
+	else {
+		$libapreq = 1;
+	}
+}
 
 # Translation URI handler (embeds simple management for session tracking via URI)
 sub handler {
@@ -25,12 +37,12 @@ sub handler {
 	my (%session_config,%session,$session_id,%cookie_options);
 
 	return DECLINED unless $r->is_initial_req;
-			
+
 	my $debug_prefix = "SessionManager ($$):";
 	$session_config{'SessionManagerDebug'} = $r->dir_config("SessionManagerDebug") || 0;
 
 	print STDERR "$debug_prefix ---START REQUEST: " .  $r->uri . " ---\n" if $session_config{'SessionManagerDebug'} > 0;
-				
+
 	# Get and remove session ID from URI
 	if ( $r->dir_config("SessionManagerURITracking") eq 'On' ) {
 		print STDERR "$debug_prefix start URI " . $r->uri . "\n" if $session_config{'SessionManagerDebug'} > 0;
@@ -47,33 +59,44 @@ sub handler {
 	}
 	
 	# declines each request if session manager is off
-	return DECLINED unless ( $r->dir_config("SessionManagerTracking") eq 'On' );
+	return DECLINED unless ( $r->dir_config('SessionManagerTracking') eq 'On' );
 
 	# Set exclusion extension(s)
-	$session_config{'SessionManagerItemExclude'} = $r->dir_config("SessionManagerItemExclude") || '(\.gif|\.jpe?g|\.png|\.mpe?g|\.css|\.js|\.txt|\.mp3|\.wav|\.swf|\.avi|\.au|\.ra?m)$';
+	$session_config{'SessionManagerItemExclude'} = $r->dir_config('SessionManagerItemExclude') || '(\.gif|\.jpe?g|\.png|\.mpe?g|\.css|\.js|\.txt|\.mp3|\.wav|\.swf|\.avi|\.au|\.ra?m)$';
 
 	# returns if resource type is to exlcude
 	return DECLINED if ( $r->uri =~ /$session_config{'SessionManagerItemExclude'}/i );
 
-	$session_config{'SessionManagerStore'} = $r->dir_config("SessionManagerStore") || 'File';
-	$session_config{'SessionManagerLock'} = $r->dir_config("SessionManagerLock") || 'Null';
-	$session_config{'SessionManagerGenerate'} = $r->dir_config("SessionManagerGenerate") || 'MD5';
-	$session_config{'SessionManagerSerialize'} = $r->dir_config("SessionManagerSerialize") || 'Storable';
-	$session_config{'SessionManagerExpire'} = $r->dir_config("SessionManagerExpire") || 3600;
-	$session_config{'SessionManagerInactivity'} = $r->dir_config("SessionManagerInactivity");
-	$session_config{'SessionManagerName'} = $r->dir_config("SessionManagerName") || 'PERLSESSIONID';
+	$session_config{'SessionManagerStore'} = $r->dir_config('SessionManagerStore') || 'File';
+	$session_config{'SessionManagerLock'} = $r->dir_config('SessionManagerLock') || 'Null';
+	$session_config{'SessionManagerGenerate'} = $r->dir_config('SessionManagerGenerate') || 'MD5';
+	$session_config{'SessionManagerSerialize'} = $r->dir_config('SessionManagerSerialize') || 'Storable';
+	$session_config{'SessionManagerExpire'} = ( $r->dir_config('SessionManagerExpire') =~ /^\d+$/ ) ? $r->dir_config('SessionManagerExpire') : 3600;
+	$session_config{'SessionManagerInactivity'} = ( $r->dir_config('SessionManagerInactivity') =~ /^\d+$/ ) ? $r->dir_config('SessionManagerInactivity') : undef;
+	$session_config{'SessionManagerName'} = $r->dir_config('SessionManagerName') || 'PERLSESSIONID';
 
 	if ( $session_config{'SessionManagerDebug'} >= 3 ) {
 		print STDERR "$debug_prefix configuration settings\n";
 		foreach (sort keys %session_config)	{
-		   print STDERR "\t$_ = $session_config{$_}\n";
+			print STDERR "\t$_ = $session_config{$_}\n";
 		}
 	}
 	
 	# Get session ID from cookie
-	unless ( $r->dir_config("SessionManagerURITracking") eq 'On' ) {
-		my %cookies = Apache::Cookie->fetch; 
-		$session_id = $cookies{$session_config{'SessionManagerName'}}->value if defined $cookies{$session_config{'SessionManagerName'}};
+	unless ( $r->dir_config('SessionManagerURITracking') eq 'On' ) {
+
+		if ( $libapreq ) {
+			my %cookies = Apache::Cookie->fetch; 
+			$session_id = $cookies{$session_config{'SessionManagerName'}}->value if defined $cookies{$session_config{'SessionManagerName'}};
+			print STDERR "$debug_prefix Apache::Cookie fetch\n" if $session_config{'SessionManagerDebug'} >= 5;
+      }
+		# Fetch cookies with CGI::Cookie				
+		else {
+			# At this phase (HeaderParser | Translation) no $ENV{'COOKIE'} is set, so we use CGI::Cookie parse method by passing 'Cookie' HTTP header
+			my %cookies = CGI::Cookie->parse($r->header_in('Cookie'));
+			$session_id = $cookies{$session_config{'SessionManagerName'}}->value if defined $cookies{$session_config{'SessionManagerName'}};
+			print STDERR "$debug_prefix CGI::Cookie fetch\n" if $session_config{'SessionManagerDebug'} >= 5;
+		}
 	}
 
 	# Prepare Apache::Session::Flex options parameters call
@@ -97,7 +120,7 @@ sub handler {
 		}
 	}
 
-	# Experimental code (support for mod_backhand)
+	# Support for mod_backhand sticky sessions
 	$session_id = substr($session_id,8) if ( $r->dir_config('SessionManagerEnableModBackhand') eq 'On' );
 	 
 	# Try to retrieve session object from session ID
@@ -138,7 +161,7 @@ sub handler {
 	$r->pnotes('SESSION_MANAGER_HANDLE' => \%session );
 
 	# set 'SESSION_MANAGER_SID' env variable to session ID to make it available to CGI/SSI scripts
-   $r->subprocess_env(SESSION_MANAGER_SID => $session{_session_id}) if ($r->dir_config("SessionManagerSetEnv") eq 'On');
+   $r->subprocess_env(SESSION_MANAGER_SID => $session{_session_id}) if ($r->dir_config('SessionManagerSetEnv') eq 'On');
 
 	$r->register_cleanup(\&cleanup);
 
@@ -152,7 +175,7 @@ sub handler {
 		}
 
 		# redirect to embedded session ID URI...
-		if ( $r->dir_config("SessionManagerURITracking") eq 'On' ) {
+		if ( $r->dir_config('SessionManagerURITracking') eq 'On' ) {
 			print STDERR "$debug_prefix URI redirect...\n" if $session_config{'SessionManagerDebug'} > 0;
 			_redirect($r,$session_id);
 			return REDIRECT;
@@ -163,11 +186,11 @@ sub handler {
 			# Load cookie specific parameters
 			foreach my $arg ( split(/\s*,\s*/,$r->dir_config('SessionManagerCookieArgs')) ) {
 				my ($key,$value) = split(/\s*=>\s*/,$arg);
-				$cookie_options{lc($key)} = $value if $key =~ /^(expires|domain|path|secure)$/i;
+				$cookie_options{'-' . lc($key)} = $value if $key =~ /^(expires|domain|path|secure)$/i;
 			}
 			
 			# Set default cookie path
-			$cookie_options{'path'} = '/' unless $cookie_options{'path'};
+			$cookie_options{'-path'} = '/' unless $cookie_options{'-path'};
 			
 			if ( $session_config{'SessionManagerDebug'} >= 5 ) {
 				print STDERR "$debug_prefix Cookie options\n";
@@ -175,12 +198,29 @@ sub handler {
 				   print STDERR "\t$_ = $cookie_options{$_}\n";
 				}
 			}
-			my $cookie = Apache::Cookie->new($r,
-				name => $session_config{'SessionManagerName'},
-				value => $session_id,
-				%cookie_options
-			  );
-			$cookie->bake;
+
+			# Set cookie with Apache::Cookie
+			if ( $libapreq ) {
+				my $cookie = Apache::Cookie->new($r,
+					name => $session_config{'SessionManagerName'},
+					value => $session_id,
+					%cookie_options
+				  );
+				$cookie->bake;
+				
+				print STDERR ("$debug_prefix Apache::Cookie bake " . $cookie->as_string . "\n") if $session_config{'SessionManagerDebug'} >= 5;
+	      }
+			# Set cookie with CGI::Cookie
+			else {
+				my $cookie = CGI::Cookie->new(
+					-name => $session_config{'SessionManagerName'},
+					-value => $session_id,
+					%cookie_options
+				  );
+				$r->err_header_out( 'Set-Cookie' => "$cookie" );
+				
+				print STDERR "$debug_prefix CGI::Cookie bake $cookie\n" if $session_config{'SessionManagerDebug'} >= 5;
+			}
 		}
 	}
 	
@@ -191,7 +231,7 @@ sub handler {
 
 sub cleanup {
 	my $r = shift;
-	return DECLINED unless ( $r->dir_config("SessionManagerTracking") eq 'On' );
+	return DECLINED unless ( $r->dir_config('SessionManagerTracking') eq 'On' );
 	my $session = ref $r->pnotes('SESSION_MANAGER_HANDLE') ? $r->pnotes('SESSION_MANAGER_HANDLE') : {};
 	untie %{$session};
 	return DECLINED;
@@ -243,12 +283,13 @@ sub _redirect {
 } 
 
 1;
+#__END__
 
 =pod 
 
 =head1 NAME
 
-Apache::SessionManager - mod_perl extension to manage sessions 
+Apache::SessionManager - mod_perl session manager extension to manage sessions 
 over HTTP requests
 
 =head1 SYNOPSIS
@@ -257,7 +298,7 @@ In httpd.conf:
 
    PerlModule Apache::SessionManager
    PerlTransHandler Apache::SessionManager
-	  
+
    <Location /my-app-with-session>
       SetHandler perl-script
       PerlHandler Apache::MyModule
@@ -274,28 +315,27 @@ In httpd.conf:
 
 =head1 DESCRIPTION
 
-Apache::SessionManager is a mod_perl module that helps 
-session management of a web application. This simple module is a 
-wrapper around Apache::Session persistence framework for session data.
+Apache::SessionManager is a mod_perl module that helps session management 
+of a web application. This module is a wrapper around L<Apache::Session|Apache::Session> persistence 
+framework for session data.
 It creates a session object and makes it available to all other handlers 
 transparenlty by putting it in pnotes. In a mod_perl handlers you can retrieve 
 the session object directly from pnotes with predefined key 
-'SESSION_MANAGER_HANDLE':
+C<SESSION_MANAGER_HANDLE>:
 
    my $session = $r->pnotes('SESSION_MANAGER_HANDLE') ? $r->pnotes('SESSION_MANAGER_HANDLE') : ();
-
-In a CGI Apache::Registry script:
-
-   my $r = Apache->request;
-   my $session = $r->pnotes('SESSION_MANAGER_HANDLE') ? $r->pnotes('SESSION_MANAGER_HANDLE') : (); 
 
 then it is possible to set a value in current session with:
 
    $$session{'key'} = $value;
+   # same as
+   $session->{'key'} = $value;	
 
-or read value session with:
+or it is possible to read value session with:
 
    print "$$session{'key'}";
+   # same as
+   print $session->{'key'};	
 
 The following functions also are provided (but not yet exported) by this module: 
 
@@ -305,13 +345,25 @@ The following functions also are provided (but not yet exported) by this module:
 
 Return an hash reference to current session object.
 
+In a mod_perl module handler:
+
+   sub handler {
+      my $r = shift;
+      my $session = Apache::SessionManager::get_session($r);
+      ...
+   }
+
+In a CGI L<Apache::Registry|Apache::Registry> script:
+
+   my $session = Apache::SessionManager::get_session(Apache->request);
+
 =item Apache::SessionManager::destroy_session(Apache->request)
 
 Destroy the current session object.
 
 =back
 
-For instance:
+For instance this is a simple mod_perl handler:
 
    package Apache::MyModule;
    use strict;
@@ -325,17 +377,36 @@ For instance:
 
       # set a value in current session
       $$session{'key'} = "some value";
- 
+      # same as
+      $session->{'key'} = "some value";
+
       # read value session
-      print "$$session{'key'}";
+      print $$session{'key'};
+      # same as
+      print $session->{'key'};
 
       # destroy session explicitly
       Apache::SessionManager::destroy_session($r);
-      
+
       ...
- 
+
       return OK;
    } 
+
+and you can install it by adding this kind of lines in I<httpd.conf>:
+
+   PerlModule Apache::SessionManager
+   PerlTransHandler Apache::SessionManager
+
+   <Location /mymodule>
+      SetHandler perl-script
+      PerlHandler Apache::MyModule
+      PerlSetVar SessionManagerTracking On
+      PerlSetVar SessionManagerExpire 3600
+      PerlSetVar SessionManagerInactivity 900
+      PerlSetVar SessionManagerStore File
+      PerlSetVar SessionManagerStoreArgs "Directory => /tmp/apache_sessions"
+   </Location>  
 
 =head1 INSTALLATION
 
@@ -346,9 +417,12 @@ Prerequisites:
 
 =over 4
 
-=item * mod_perl (of course) with the appropriate call-back hooks (PERL_TRANS=1)
+=item * mod_perl (of course) with the appropriate call-back hooks (PERL_TRANS=1 PERL_HEADER_PARSER=1)
 
-=item * Apache::Request >= 0.33 (libapreq) is required
+=item * CGI::Cookie
+
+=item * Apache::Cookie >= 0.33 (libapreq) is preferred but not required 
+(CGI::Cookie will be used instead)
 
 =item * Apache::Session >= 0.53 is required
 
@@ -365,33 +439,102 @@ Installation as usual:
 
 =head1 CONFIGURATION
 
-To enable session tracking with this module you should modify 
-a configuration in B<httpd.conf> by adding the following lines:
+To enable session tracking with this module you could modify I<httpd.conf>
+or I<.htaccess> files
+
+=head2 Configuring via httpd.conf
+
+To enable session tracking with this module via I<httpd.conf> (or any 
+files included by the C<Include> directive) you must add the following 
+lines:
 
    PerlModule Apache::SessionManager
    PerlTransHandler Apache::SessionManager
    PerlSetVar SessionManagerTracking On
 
 This will activate the session manager over each request.
-It is posibible to activate this module by location or directory
-only:
+It is posibible to activate this module only in certain locations:
 
    <Location /my-app-dir>
       PerlSetVar SessionManagerTracking On
    </Location>
 
-Also, it is possible to deactivate session management per 
-directory or per location explicitly:
+Also, it is possible to deactivate session management explicitly:
 
    <Location /my-app-dir-without>
       PerlSetVar SessionManagerTracking Off
    </Location>
 
+If you want to control session management by directory, you cannot use
+C<PerlTransHandler>, but you must install the module in a phase
+where the mapping of URI->filename has been made. 
+Generally C<Header parsing> phase is a good place:
+
+   PerlModule Apache::SessionManager
+   <Directory /usr/local/apache/htdocs/perl>
+      <FilesMatch "\.perl$">
+         SetHandler perl-script
+         PerlHandler Apache::Registry
+         PerlSendHeader On
+         PerlSetupEnv   On
+         Options ExecCGI
+
+         PerlHeaderParserHandler Apache::SessionManager
+         PerlSetVar SessionManagerTracking On
+         PerlSetVar SessionManagerExpire 3600
+         PerlSetVar SessionManagerInactivity 900
+         PerlSetVar SessionManagerName REGISTRY_SESSIONID
+         PerlSetVar SessionManagerStore File
+         PerlSetVar SessionManagerStoreArgs "Directory => /tmp/apache_sessions"
+      </FilesMatch>
+   </Directory>
+
+
+=head2 Configuring via .htaccess
+
+In the case you don't have access to I<httpd.conf> or you want work with
+I<.htaccess> files only , you can put similar directives directly into 
+an I<.htaccess> file:
+
+   <FilesMatch "\.(cgi|pl)$">
+      PerlHeaderParserHandler Apache::SessionManager
+      PerlSetVar SessionManagerTracking On
+      PerlSetVar SessionManagerExpire 3600
+      PerlSetVar SessionManagerInactivity 900
+      PerlSetVar SessionManagerName PERLSESSIONID
+      PerlSetVar SessionManagerStore File
+      PerlSetVar SessionManagerStoreArgs "Directory => /tmp/apache_session"
+      PerlSetVar SessionManagerDebug 5
+   </FilesMatch> 
+
+The only difference is that you cannot use C<Location> directive (I used C<FilesMatch>)
+and you must install Apache::SessionManager in C<Header parsing> phase of Apache request
+instead of C<URI translation> phase.
+
+=head2 Notes on using .htaccess instead of httpd.conf
+
+=over 4
+
+=item *
+
+In this cases it is necessary to install Apache::SessionManager in C<Header parsing> 
+phase and not into C<URI translation> phase (in this phase, I<.htaccess> hasn't yet 
+been processed).
+
+=item *
+
+Using I<.htaccess>, it is possible to use only cookies for the session tracking.
+
+=back
+
+See L<Apache::SessionManager::cookpod|Apache::SessionManager::cookpod> for more info 
+about module configuration and use within thirdy part packages.
+
 =head1 DIRECTIVES
 
 You can control the behaviour of this module by configuring
 the following variables with C<PerlSetVar> directive 
-in the B<httpd.conf>.
+in the I<httpd.conf>.
 
 =over 4
 
@@ -424,9 +567,11 @@ This single directive defines global sessions expiration time
 
    PerlSetVar SessionManagerExpire 900
 
-The default value is C<3600> seconds.
+If non set, the default value is C<3600> seconds.
+An explicit '0' value means no expiration time and the session will die 
+when the user will close the browser.
 The module put the user start session time in a special session key 
-'_session_start'.
+C<_session_start>.
 
 =item C<SessionManagerInactivity> number
 
@@ -437,7 +582,7 @@ This single directive defines user inactivity sessions expiration time
 
 If not specified no user inactivity expiration policies are applied.
 The module put the user timestamp in a special session key 
-'_session_timestamp'.
+C<_session_timestamp>.
 
 =item C<SessionManagerName> string
 
@@ -480,18 +625,18 @@ For instance:
                                         Domain => .yourdomain.com, \
                                         Secure => 1"
 
-Please see the documentation for C<Apache::Cookie> or C<CGI::Cookie> in order
+Please see the documentation for L<Apache::Cookie|Apache::Cookie> or L<CGI::Cookie|CGI::Cookie> in order
 to see more cookie arguments details.
 
 =item C<SessionManagerStore> datastore
 
 This single directive sets the session datastore 
-used by Apache::Session framework
+used by L<Apache::Session|Apache::Session> framework
 
    PerlSetVar SessionManagerStore File
 
 The following datastore plugins are available with 
-Apache::Session distribution:
+L<Apache::Session|Apache::Session> distribution:
 
 =over 4
 
@@ -521,7 +666,7 @@ Sessions are stored in DB files
 
 =back
 
-In addition to datastore plugins shipped with Apache::Session,
+In addition to datastore plugins shipped with L<Apache::Session|Apache::Session>,
 you can pass the modules you want to use as arguments to the
 store constructor. The Apache::Session::Whatever part is
 appended for you: you should not supply it.
@@ -590,9 +735,13 @@ will be declined. Also is possible to use regex:
 
 and all the request (URI) ending by ".mpeg", ".mpg" or ".mp3" will be declined.
 
-The default value is:
+If C<SessionManagerItemExclude> isn't defined, the default value is:
 
 C<(\.gif|\.jpe?g|\.png|\.mpe?g|\.css|\.js|\.txt|\.mp3|\.wav|\.swf|\.avi|\.au|\.ra?m)$>
+
+B<Note> If you want process each request, you can set C<SessionManagerItemExclude> with:
+
+   PerlSetVar SessionManagerItemExclude "^$"
 
 =item C<SessionManagerSetEnv> On|Off
 
@@ -603,6 +752,25 @@ variable with the current (valid) session ID:
 
 It makes session ID available to CGI scripts for use in absolute
 links or redirects. The default value is C<Off>.
+
+To retrieve the C<SESSION_MANAGER_SID> environment variabile you can
+do, for instance:
+
+=over 
+
+=item * mod_perl
+
+   print $r->subprocess_env('SESSION_MANAGER_SID');
+
+=item * CGI
+
+   print $ENV{'SESSION_MANAGER_SID'};
+
+=item * Server Side Includes
+
+   <!--#echo var="SESSION_MANAGER_SID" -->
+
+=back
 
 =item C<SessionManagerDebug> level
 
@@ -630,7 +798,8 @@ candidate. This can be used to implement sticky user sessions -- where a
 given user will always be delivered to the same server once a session 
 has been established.
 Simply turning on this directive, you add hex IP address in front to session_id.
-See mod_backhand docs for more details (http://www.backhand.org/mod_backhand).
+See mod_backhand docs for more details 
+(L<http://www.backhand.org/mod_backhand|http://www.backhand.org/mod_backhand>).
 
 The default value is C<Off>.
 
@@ -643,12 +812,11 @@ use the session ID embedded in the URI.
 In fact, this is a possible cookieless solution to track
 session ID between browser and server.
 
-If you enable session ID URI tracking you must
-place all the PerlSetVar directives you need
-in server config context (that is outside of <Directory> or 
-<Location> sections) otherwise the handler will not work for 
-these requests. The reason of this is that the URI will be rewrite
-with session ID on the left and all <Location> that you've defined 
+If you enable session ID URI tracking you must place all the 
+C<PerlSetVar> directives you need in server config context (that is 
+outside of <Directory> or <Location> sections) otherwise the handler 
+will not work for these requests. The reason of this is that the URI will 
+be rewrite with session ID on the left and all <Location> that you've defined 
 will match no longer.
 
 Alternatively it is possible to use <LocationMatch>
@@ -656,7 +824,7 @@ section. For instance:
 
    PerlModule Apache::SessionManager
    PerlTransHandler Apache::SessionManager
-		
+
    <LocationMatch "^/([0-9a-h]+/)?my-app-dir">
       SetHandler perl-script
       PerlHandler MyModule
@@ -723,11 +891,7 @@ register_cleanup method
 
 =item * 
 
-Update test suite to run correclty under Win32 platform
-
-=item * 
-
-Test, test ,test
+Test, test ,test ;-)
 
 =back
 
@@ -756,17 +920,21 @@ version.
 Patches are welcome and I'll update the module if any problems 
 will be found.
 
+=head1 VERSION
+
+Version 0.05
+
 =head1 SEE ALSO
 
-L<Apache::Session>, L<Apache::Session::Flex>, L<Apache::Request>, 
-L<Apache::Cookie>, L<Apache>, L<perl(1)>
+L<Apache::SessionManager::cookpod|Apache::SessionManager::cookpod>,
+L<Apache::Session|Apache::Session>, L<Apache::Session::Flex|Apache::Session::Flex>, 
+L<Apache::Request|Apache::Request>, L<Apache::Cookie|Apache::Cookie>, 
+L<CGI::Cookie|CGI::Cookie>, L<Apache|Apache>, perl(1)
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2001,2002 Enrico Sorcinelli. All rights reserved.
+Copyright (C) 2001-2003 Enrico Sorcinelli. All rights reserved.
 This program is free software; you can redistribute it 
 and/or modify it under the same terms as Perl itself. 
 
 =cut
-
-__END__

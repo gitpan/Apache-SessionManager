@@ -3,6 +3,7 @@ package PrintEnv;
 require 5.005;
 use strict;
 use Apache::Constants qw(:common);
+use Data::Dumper;
 
 use vars qw($VERSION);
 $VERSION = '0.1';
@@ -17,26 +18,31 @@ sub handler {
 <HTML>
 <HEAD><TITLE>mod_perl Apache::SessionManager test module</TITLE></HEAD>
 <BODY BGCOLOR="#FFFFFF">
-<CENTER><H1>mod_perl Apache::SessionManager test module</H1>
-<H3>Session start at $$session{'_session_start'}</H3></CENTER>
-<H2>Environment variables:</H2>
+<CENTER><H1>mod_perl Apache::SessionManager test module</H1></CENTER>
 EOM
-	foreach (sort keys %{$r->subprocess_env}) {
-		$str .= "<B>$_</B>=" . $r->subprocess_env->{$_} . "<BR>\n";
-	}
 
-	$str .= "<H2>HTTP request headers:</H2>";
-	foreach (sort keys %{$r->headers_in()}) {
-		$str .= "<B>$_</B>=" . $r->headers_in->{$_} . "<BR>\n";
-	}
+	$str .= '<PRE>' . Data::Dumper::Dumper($session) . '</PRE>';
+#	$str .= HashVariables($session,'<H2>Session Dump</H2>');
+	$str .= HashVariables(\%INC,'<H2>%INC</H2>');
+	$str .= HashVariables($r->subprocess_env,'<H2>Environment variables</H2>');
+	$str .= HashVariables({$r->headers_in()},'<H2>HTTP request headers</H2>');
 	$str .= "</BODY>\n</HTML>";
 	
 	# set session value
-	$$session{'random'} = rand;
-		
+	$$session{rand()} = rand;
+
    # Output code to client
    $r->content_type('text/html'); 
    $r->send_http_header;
    $r->print($str);
    return OK;
 }
+
+sub HashVariables {
+	my($hash,$topic) = @_;
+   my $str = $topic;
+   foreach(sort keys %$hash) {
+      $str .= "<B>$_</B> = $$hash{$_}<BR>\n";
+   }
+   return $str;
+}  
