@@ -49,16 +49,23 @@ my %requests = (
 	        uri     => '/session-OO',
 	        method  => 'GET',
 	       },
+   # mod_perl test module: should succeed with session cookie tracking (OO Apache::SessionManager interface)
+	7  => { 
+	        uri     => '/session-header_exclude',
+	        method  => 'GET',
+	       },
+   # mod_perl test module: should succeed without session cookie tracking 
+	8  => { 
+	        uri     => '/session-ip_exclude',
+	        method  => 'GET',
+	       },
 );
 
 print "1.." . (keys %requests) . "\n";
 
-Apache::testold->test(++$TEST_NUM, 1);
-Apache::testold->test(++$TEST_NUM, 1);
-Apache::testold->test(++$TEST_NUM, 1);
-Apache::testold->test(++$TEST_NUM, 1);
-Apache::testold->test(++$TEST_NUM, 1);
-Apache::testold->test(++$TEST_NUM, 1);
+for ( 1..(keys %requests) ) { 
+	Apache::testold->test(++$TEST_NUM, 1);
+}
 
 foreach my $testnum (sort {$a <=> $b} keys %requests) {
 	my $response = Apache::testold->fetch($requests{$testnum});

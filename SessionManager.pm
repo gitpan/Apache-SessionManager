@@ -1,5 +1,5 @@
 #
-#    Apache::SessionManager.pm - mod_perl module to manage HTTP session
+#    Apache::SessionManager.pm - mod_perl module to manage HTTP sessions
 #
 #    The Apache::SessionManager module is free software; you can redistribute it
 #    and/or modify it under the same terms as Perl itself. 
@@ -13,7 +13,7 @@ require 5.005;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '1.01';
+$VERSION = '1.02';
 
 use mod_perl;
 use Apache::Session::Flex;
@@ -29,7 +29,7 @@ else {
 # Test libapreq modules
 my $libapreq;
 BEGIN {
-	# Test mod_perl versione and use the appropriate components
+	# Tests mod_perl version and uses the appropriate components
 	if (MP2) {
 		require Apache::Const;
 		Apache::Const->import(-compile => qw(DECLINED REDIRECT));
@@ -39,6 +39,7 @@ BEGIN {
 		require APR::Pool;           # for cleanup_register
 		require APR::URI;
 		require Apache::URI;
+		#require Apache::Connection;  # for remote_ip
 	}
 	else {
 		require Apache::Constants;
@@ -56,7 +57,6 @@ BEGIN {
 	}
 }
 
-# Translation URI handler (embeds simple management for session tracking via URI)
 sub handler {
 	my $r = shift;
 	my (%session_config,%session,$session_id,%cookie_options);
@@ -65,8 +65,9 @@ sub handler {
 
 	my $debug_prefix = "SessionManager ($$):";
 	$session_config{'SessionManagerDebug'} = $r->dir_config('SessionManagerDebug') || 0;
-	foreach ( qw/SessionManagerURITracking SessionManagerTracking SessionManagerEnableModBackhand SessionManagerStoreArgs 
-		          SessionManagerCookieArgs SessionManagerSetEnv SessionManagerExpire/ ) {
+	foreach ( qw/SessionManagerURITracking SessionManagerTracking SessionManagerEnableModBackhand 
+		          SessionManagerStoreArgs SessionManagerCookieArgs SessionManagerSetEnv SessionManagerExpire 
+		          SessionManagerHeaderExclude SessionManagerIPExclude/ ) {
 		$session_config{$_} = $r->dir_config($_);
 	}
 
@@ -90,10 +91,23 @@ sub handler {
 	# declines each request if session manager is off
 	return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED) unless ( $session_config{'SessionManagerTracking'} eq 'On' );
 
+	# declines requests matching IP exclusion list
+	foreach ( split(/\s+/,$session_config{'SessionManagerIPExclude'}) ) {
+		return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED) if ( $r->connection->remote_ip =~ /^$_/ ); 
+	}
+
+	# declines requests matching any of exclusions headers 
+	foreach my $header ( $r->dir_config->get('SessionManagerHeaderExclude') ) {
+		my ($key,$value) = split(/\s*=\s*>\s*/,$header,2);
+		if ( $r->headers_in->{$key} =~ /$value/i ) {
+			return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED)
+		}
+	}
+
 	# Set exclusion extension(s)
 	$session_config{'SessionManagerItemExclude'} = $r->dir_config('SessionManagerItemExclude') || '(\.gif|\.jpe?g|\.png|\.mpe?g|\.css|\.js|\.txt|\.mp3|\.wav|\.swf|\.avi|\.au|\.ra?m)$';
 
-	# returns if resource type is to exlcude
+	# declines requests if resource type is to exlcude
 	return (MP2 ? Apache::DECLINED : Apache::Constants::DECLINED) if ( $r->uri =~ /$session_config{'SessionManagerItemExclude'}/i );
 
 	$session_config{'SessionManagerStore'} = $r->dir_config('SessionManagerStore') || 'File';
@@ -113,15 +127,16 @@ sub handler {
 			print STDERR "\t$_ = $session_config{$_}\n";
 		}
 	}
-	
+
 	# Get session ID from cookie
 	unless ( $session_config{'SessionManagerURITracking'} eq 'On' ) {
 
 		if ( $libapreq ) {
-			my %cookies = Apache::Cookie->fetch; 
+			# Test libapreq 1 or 2 version to use correct 'fetch' API
+			my %cookies = $Apache::Request::VERSION >= 2 ? Apache::Cookie->fetch($r) : Apache::Cookie->fetch; 
 			$session_id = $cookies{$session_config{'SessionManagerName'}}->value if defined $cookies{$session_config{'SessionManagerName'}};
 			print STDERR "$debug_prefix Apache::Cookie fetch\n" if $session_config{'SessionManagerDebug'} >= 5;
-      }
+		}
 		# Fetch cookies with CGI::Cookie				
 		else {
 			# At this phase (HeaderParser | Translation), no $ENV{'COOKIE'} var is set, so we use CGI::Cookie parse method by passing 'Cookie' HTTP header
@@ -141,7 +156,7 @@ sub handler {
 
 	# Load session data store specific parameters
 	foreach my $arg ( split(/\s*,\s*/,$session_config{'SessionManagerStoreArgs'}) ) {
-		my ($key,$value) = split(/\s*=>\s*/,$arg);
+		my ($key,$value) = split(/\s*=\s*>\s*/,$arg);
 		$apache_session_flex_options{$key} = $value;
 	}
 
@@ -195,7 +210,7 @@ sub handler {
 	# set 'SESSION_MANAGER_SID' env variable to session ID to make it available to CGI/SSI scripts
 	$r->subprocess_env(SESSION_MANAGER_SID => $session{_session_id}) if ($session_config{'SessionManagerSetEnv'} eq 'On');
 
-	MP2 ? $r->pool->cleanup_register(\&cleanup) : $r->register_cleanup(\&cleanup);
+	MP2 ? $r->pool->cleanup_register(\&cleanup,$r) : $r->register_cleanup(\&cleanup);
 
 	# Foreach new session we:
 	unless ( $session_id ) {
@@ -348,7 +363,6 @@ sub _redirect {
 	if ($redirect !~ m#/$# && -d $r->lookup_uri($redirect)->filename) {
 		$redirect .= '/';
 	}
-	print STDERR "$redirect\n";
 	$r->headers_out->{'Location'} = $redirect;
 }
 	
@@ -426,7 +440,7 @@ or it is possible to read value session with:
 =head1 MOD_PERL 2 COMPATIBILITY
 
 Since version 1, Apache::SessionManager is fully compatible with both mod_perl
-generation 1.0 and 2.0.
+generations 1.0 and 2.0.
 
 If you have mod_perl 1.0 and 2.0 installed on the same system and the two uses
 the same per libraries directory, to use mod_perl 2.0 version make sure to load
@@ -580,12 +594,12 @@ Installation as usual:
 
 =head1 CONFIGURATION
 
-To enable session tracking with this module you could modify I<httpd.conf> or
-I<.htaccess> files.
+To enable session tracking with this module you could modify F<httpd.conf> or
+F<.htaccess> files.
 
-=head2 Configuring via httpd.conf
+=head2 Configuring via F<httpd.conf>
 
-To enable session tracking with this module via I<httpd.conf> (or any  files
+To enable session tracking with this module via F<httpd.conf> (or any  files
 included by the C<Include> directive) you must add the following  lines:
 
    PerlModule Apache::SessionManager
@@ -629,12 +643,11 @@ good place:
       </FilesMatch>
    </Directory>
 
+=head2 Configuring via F<.htaccess>
 
-=head2 Configuring via .htaccess
-
-In the case you don't have access to I<httpd.conf> or you want work with
-I<.htaccess> files only , you can put similar directives directly into  an
-I<.htaccess> file:
+In the case you don't have access to F<httpd.conf> or you want work with
+F<.htaccess> files only , you can put similar directives directly into  an
+F<.htaccess> file:
 
    <FilesMatch "\.(cgi|pl)$">
       PerlHeaderParserHandler Apache::SessionManager
@@ -651,7 +664,7 @@ The only difference is that you cannot use C<Location> directive (I used
 C<FilesMatch>) and you must install Apache::SessionManager in C<Header parsing>
 phase of Apache request instead of C<URI translation> phase.
 
-=head2 Notes on using .htaccess instead of httpd.conf
+=head2 Notes on using F<.htaccess> instead of F<httpd.conf>
 
 =over 4
 
@@ -659,11 +672,11 @@ phase of Apache request instead of C<URI translation> phase.
 
 In this cases it is necessary to install Apache::SessionManager in C<Header
 parsing>  phase and not into C<URI translation> phase (in this phase,
-I<.htaccess> hasn't yet  been processed).
+F<.htaccess> hasn't yet  been processed).
 
 =item *
 
-Using I<.htaccess>, it is possible to use only cookies for the session
+Using F<.htaccess>, it is possible to use only cookies for the session
 tracking.
 
 =back
@@ -674,7 +687,7 @@ info  about module configuration and use within thirdy part packages.
 =head1 DIRECTIVES
 
 You can control the behaviour of this module by configuring the following
-variables with C<PerlSetVar> directive  in the I<httpd.conf> (or I<.htaccess>
+variables with C<PerlSetVar> directive  in the F<httpd.conf> (or F<.htaccess>
 files)
 
 =over 4
@@ -686,7 +699,7 @@ This single directive enables session traking
    PerlSetVar SessionManagerTracking On
 
 It can be placed in server config, <VirtualHost>, <Directory>,  <Location>,
-<File> and .htaccess context.
+<Files> and F<.htaccess> context.
 The default value is C<Off>.
 
 =item C<SessionManagerURITracking> On|Off
@@ -871,8 +884,8 @@ This single directive defines the exclusion string. For example:
 
    PerlSetVar SessionManagerItemExclude exclude_string
 
-All the HTTP requests containing the 'exclude_string' string will be declined.
-Also is possible to use regex:
+All the HTTP requests containing the 'exclude_string' string in the URI will be
+declined. Also is possible to use regex:
 
    PerlSetVar SessionManagerItemExclude "\.m.*$"
 
@@ -886,6 +899,40 @@ B<Note> If you want process each request, you can set
 C<SessionManagerItemExclude> with:
 
    PerlSetVar SessionManagerItemExclude "^$"
+
+=item C<SessionManagerHeaderExclude>
+
+This directive allows to define HTTP headers contents in order to decline
+requests that match them. For example:
+
+   PerlSetVar SessionManagerHeaderExclude "User-Agent => SomeBot"
+
+All the HTTP requests containing the 'SomeBot' string in the HTTP C<User-Agent>
+header will be declined. Also is possible to use regex:
+
+   PerlSetVar SessionManagerHeaderExclude "User-Agent => SomeBot\s*/\*\d+\.\d+"
+
+All HTTP headers are available (case sensitive) to use in the exclusion rules.
+
+In order to set more than one rule you must use C<PerlAddVar> directive:
+
+   PerlSetVar SessionManagerHeaderExclude "User-Agent => SomeBot\s*/\*\d+\.\d+"
+   PerlAddVar SessionManagerHeaderExclude "User-Agent => GoogleBot"
+   PerlAddVar SessionManagerHeaderExclude "Referer => ^http:\/\/some\.host\.com"
+
+Why could be useful to decline request based on HTTP headers check? If you
+store session ID in the URI, this prevent bot search engines to index URL with
+the session ID.
+
+=item C<SessionManagerIPExclude> IP-list
+
+Matchs client IP addresses against IP list and declines request. For example:
+
+   PerlSetVar SessionManagerIPExclude "127.0.0. 192.168. 195.31.218.3"
+
+The match is very simple so it isn't possible to set IP range like:
+   
+   192.168.0.0/16
 
 =item C<SessionManagerSetEnv> On|Off
 
@@ -985,7 +1032,7 @@ directive either because it can be palced only in server config and/or
 session ID embedded in the URI.
 
 In this case, you can use the proxy support available via the C<mod_rewrite>
-Apache module by putting  in front-end server's httpd.conf:
+Apache module by putting  in front-end server's F<httpd.conf>:
 
    ProxyPass /my-app-dir http://middle-end.server.com:9000/my-app-dir
    ProxyPassReverse / http://middle-end.server.com:9000/
@@ -1029,7 +1076,7 @@ This is a simple mod_perl handler F<Apache/MyModule.pm>:
       return OK;
    } 
 
-and the correspondent configuration lines in I<httpd.conf>:
+and the correspondent configuration lines in F<httpd.conf>:
 
    PerlModule Apache::SessionManager
    PerlTransHandler Apache::SessionManager
@@ -1079,11 +1126,11 @@ Test, test ,test ;-)
 
 =head1 AUTHORS
 
-Enrico Sorcinelli <enrico@sorcinelli.it>
+Enrico Sorcinelli <enrico at sorcinelli.it>
 
 =head1 THANKS
 
-A particular thanks to Greg Cope <gjjc@rubberplant.freeserve.co.uk> for
+A particular thanks to Greg Cope <gjjc at rubberplant.freeserve.co.uk> for
 freeing Apache::SessionManager namespace from his RFC (October 2000). His
 SessionManager project can be found at 
 http://sourceforge.net/projects/sessionmanager
@@ -1094,15 +1141,15 @@ This library has been tested by the author with Perl versions 5.005, 5.6.x and
 5.8.x on different platforms: Linux 2.2 and 2.4, Solaris 2.6 and 2.7 and
 Windows 98/XP.
 
-Send bug reports and comments to: enrico@sorcinelli.it In each report please
-include the version module, the Perl version, the Apache, the mod_perl version
-and your SO. If the problem is  browser dependent please include also browser
-name and version.
-Patches are welcome and I'll update the module if any problems  will be found.
+Please submit bugs to CPAN RT system at
+http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Apache-SessionManager
+or by email at bug-apache-sessionmanager@rt.cpan.org
+
+Patches are welcome and I'll update the module if any problems will be found.
 
 =head1 VERSION
 
-Version 1.01
+Version 1.02
 
 =head1 SEE ALSO
 
@@ -1113,7 +1160,7 @@ L<CGI::Cookie|CGI::Cookie>, L<Apache|Apache>, perl(1)
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2001-2003 Enrico Sorcinelli. All rights reserved. 
+Copyright (C) 2001-2004 Enrico Sorcinelli. All rights reserved. 
 This program is free software; you can redistribute it  and/or modify it under
 the same terms as Perl itself. 
 

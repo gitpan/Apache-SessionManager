@@ -152,8 +152,8 @@ WriteMakefile(
 	'ABSTRACT'     => 'Apache mod_perl module to manage HTTP sessions',
 	'VERSION_FROM'	=> 'SessionManager.pm', # finds $VERSION
 	'PREREQ_PM'		=> {
-                      "mod_perl"        => "1.24",
-                      "Apache::Session" => "1.54",
+                      'mod_perl'        => 1.24,
+                      'Apache::Session' => 1.54,
                       #"Apache::Request" => "0.33",
                      }, # e.g., Module::Name => 1.1
 	'clean'        => {FILES => 't/httpd.conf t/error_log t/httpd'},							
@@ -212,8 +212,8 @@ __DATA__
 # Enable perl-status console
 PerlModule Apache::Status
 <Location /perl-status>
-   SetHandler perl-script
-   PerlHandler Apache::Status
+	SetHandler perl-script
+	PerlHandler Apache::Status
 </Location>
 
 # Apache::SessionManager configuration section
@@ -228,7 +228,7 @@ PerlSetVar SessionManagerDebug 5
 	PerlHandler PrintEnv
 	PerlSetVar SessionManagerExpire 0
 	PerlSetVar SessionManagerStore File
-	PerlSetVar SessionManagerLock File
+	PerlSetVar SessionManagerLock Null
 	PerlSetVar SessionManagerCookieArgs "Path => /session, Secure => 0, Extras => some_value"
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerSetEnv On
@@ -239,10 +239,38 @@ PerlSetVar SessionManagerDebug 5
 	SetHandler perl-script
 	PerlHandler PrintEnvOO
 	PerlSetVar SessionManagerStore File
-	PerlSetVar SessionManagerLock File
+	PerlSetVar SessionManagerLock Null
 	PerlSetVar SessionManagerCookieArgs "Path => /session-OO, Secure => 0, Extras => some_value"
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerSetEnv On
+</Location>
+
+# These documents require cookies session (OO Apache::SessionManager interface)
+# with header exclusion list
+<Location /session-header_exclude>
+	SetHandler perl-script
+	PerlHandler PrintEnvOO
+	PerlSetVar SessionManagerStore File
+	PerlSetVar SessionManagerLock Null
+	PerlSetVar SessionManagerCookieArgs "Path => /session-header_exclude, Secure => 0"
+	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
+	PerlSetVar SessionManagerSetEnv On
+	PerlSetVar SessionManagerHeaderExclude "User-Agent = > Opera\s*\d"
+	PerlAddVar SessionManagerHeaderExclude "User-Agent => lynx"
+	PerlAddVar SessionManagerHeaderExclude "Referer => ^http://localhost"		  
+</Location>
+
+# These documents require cookies session (OO Apache::SessionManager interface)
+# with ip exclusion list
+<Location /session-ip_exclude>
+	SetHandler perl-script
+	PerlHandler PrintEnvOO
+	PerlSetVar SessionManagerStore File
+	PerlSetVar SessionManagerLock Null
+	PerlSetVar SessionManagerCookieArgs "Path => /session-ip_exclude, Secure => 0"
+	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
+	PerlSetVar SessionManagerSetEnv On
+	PerlSetVar SessionManagerIPExclude "127.0.0. 192.168."
 </Location>
 
 # These documents require cookies session w/authentication
@@ -250,7 +278,7 @@ PerlSetVar SessionManagerDebug 5
 	SetHandler perl-script
 	PerlHandler PrintEnv
 	PerlSetVar SessionManagerStore File
-	PerlSetVar SessionManagerLock File
+	PerlSetVar SessionManagerLock Null
 	PerlSetVar SessionManagerCookieArgs "Path => /session-auth, Secure => 0"
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerSetEnv On
@@ -269,7 +297,7 @@ PerlSetVar SessionManagerDebug 5
 	PerlSetVar SessionManagerExpire none
 	PerlSetVar SessionManagerURITracking On
 	PerlSetVar SessionManagerStore File
-	PerlSetVar SessionManagerLock File
+	PerlSetVar SessionManagerLock Null
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerSetEnv On
 </LocationMatch>
@@ -279,21 +307,22 @@ PerlSetVar SessionManagerDebug 5
 	SetHandler perl-script
 	PerlHandler PrintEnv
 	PerlSetVar SessionManagerStore File
-	PerlSetVar SessionManagerLock File
+	PerlSetVar SessionManagerLock Null
 	PerlSetVar SessionManagerCookieArgs "Path => /session-bh"
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp"
 	PerlSetVar SessionManagerEnableModBackhand On
 	PerlSetVar SessionManagerSetEnv On
 </Location>
 
+
 # These documents don't require cookies session
 <Location /no-session>
-   SetHandler perl-script
-   PerlHandler PrintEnv
-   PerlSetVar SessionManagerTracking Off
+	SetHandler perl-script
+	PerlHandler PrintEnv
+	PerlSetVar SessionManagerTracking Off
 </Location>
 
-# These documents require cookies session (OO Apache::SessionManager interface) MySQL as backend datastore
+# These documents require MySQL as backend datastore for cookies session (OO Apache::SessionManager interface)
 # Not used in live tests (t/httpd -f `pwd`/t/httpd.conf -DDBI)
 <IfDefine DBI>
 	PerlModule Apache::DBI
