@@ -17,7 +17,7 @@ use Apache::URI ();
 use Apache::Session::Flex;
 
 use vars qw($VERSION);
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 # Translation URI handler (embeds simple management for session tracking via URI)
 sub handler {
@@ -165,6 +165,10 @@ sub handler {
 				my ($key,$value) = split(/\s*=>\s*/,$arg);
 				$cookie_options{lc($key)} = $value if $key =~ /^(expires|domain|path|secure)$/i;
 			}
+			
+			# Set default cookie path
+			$cookie_options{'path'} = '/' unless $cookie_options{'path'};
+			
 			if ( $session_config{'SessionManagerDebug'} >= 5 ) {
 				print STDERR "$debug_prefix Cookie options\n";
 				foreach (sort keys %cookie_options)	{

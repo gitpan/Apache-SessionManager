@@ -1,6 +1,6 @@
 Description
 -----------
-This is version 0.03 of Apache::SessionManager
+This is version 0.04 of Apache::SessionManager
 
 This package contains an Apache mod_perl module to manage HTTP sessions.
 Apache::SessionManager is a mod_perl module that helps 
@@ -14,13 +14,14 @@ See perldoc Apache::SessionManager for module documentation and use
 Changes from previous version
 -----------------------------
 
-+ Added control to bypass expiration time check in new sessions
-+ Use of session in test handler t/lib/PrintEnv.pm
-+ Added successfully tested platforms in POD [BUGS] section
-! Corrected print on STDERR in _tieSession 
-! Corrected Makefile.PL httpd.conf extra lines
-! Updated pod (moved PerlTransHandler outside <Location> section in
-  a configuration example!)
+This is a maintenance release. It fix some problems 
+of test suite.
+
+	+ Set '/' as default path attribute for session cookies
+	! Updated Makefile.PL in order to skip generation of Apache test section
+	  in Makefile if 'use Apache::test' fails (notice by Jeroen Latour 
+	  <jlatour@www.arens.nl>) 
+	! Updated t/01real.t in order to skip it if 'use Apache::test' fails.
 
 Installation
 ------------

@@ -41,3 +41,10 @@ Revision history for Perl extension Apache::SessionManager.
 	  cookie session load balancing.
 	! Updated Makefile.PL httpd.conf extra lines
 	! Updated docs (added pod for new directive 'SessionManagerCookieArgs')
+
+0.04    Tue Oct 16 20:00:00 2002
+	+ Set '/' as default path attribute for session cookies
+	! Updated Makefile.PL in order to skip generation of Apache test section
+	  in Makefile if 'use Apache::test' fails (notice by Jeroen Latour 
+	  <jlatour@www.arens.nl>) 
+	! Updated t/01real.t in order to skip it if 'use Apache::test' fails.

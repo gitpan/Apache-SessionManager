@@ -17,7 +17,7 @@ for(sort keys %$necessary_modules) {
 	if($@) {
 		$errors++;
 		print " !!! you need module: $module_display\n";
-		print "     MOTIVO: $necessary_modules->{$_}\n";
+		print "     CAUSE: $necessary_modules->{$_}\n";
 	}
 	else {
 		print " --> found $module_display\n";
@@ -44,7 +44,7 @@ for(sort keys %$optional_modules) {
 		if($@) {
 			$warnings++;
 			print " ??? you may need module: $module_display\n";
-			print "     MOTIVO: $optional_modules->{$_}\n";
+			print "     CAUSE: $optional_modules->{$_}\n";
 #			print "   ERROR: $@\n";
 		} 
 		else {
@@ -57,20 +57,19 @@ my $CPAN = <<CPAN;
 
 -=-= CPAN HELP =-=-
 
-Ci sono alcuni moduli che devono o dovrebbero essere installati 
-prima di poter usare IOL::MemberShip. La via più semplice per
-installarli è tramite il CPAN. Per installarli tramite la shell 
-del CPAN lanciare il comando:
+There are many modules that have to be installed in order
+to begin using Apache::SessionManager. The easiest way to install
+modules is with CPAN.pm.  To use its command line shell,
+execute the following: 
 
 % perl -MCPAN -eshell
 
-Quindi, per installare i moduli richiesti (come Apache::Session):
+Then to install any required modules, like Apache::Session:
 
-cpan> install Apache::Session
+  cpan> install Apache::Session
 
-e il modulo CPAN eseguirà tutte le operazioni di installazione
-necessarie. Per ulteriori informazioni consultare la 
-documentazione CPAN con:
+and cpan will do this for you.  For more
+information, please view the CPAN docs with:
 
 % perldoc CPAN
 
@@ -90,10 +89,12 @@ elsif($warnings) {
 print "Required modules founded!\n";
 
 # Apache / mod_perl test
-use Apache::test;
-my %params = Apache::test->get_test_params();
-Apache::test->write_httpd_conf( %params, include => join('', <DATA>) );
-*MY::test = sub { Apache::test->MM_test(%params) }; 
+eval { require Apache::test };
+if ( !$@ ) {
+	my %params = Apache::test->get_test_params();
+	Apache::test->write_httpd_conf( %params, include => join('', <DATA>) );
+	*MY::test = sub { Apache::test->MM_test(%params) }; 
+}  
 
 use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
@@ -127,6 +128,7 @@ PerlSetVar SessionManagerDebug 5
 	PerlSetVar SessionManagerCookieArgs "Path => /session, Secure => 1, Extras => some_value"
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
 	                                    LockDirectory => /tmp"
+	PerlSetVar SessionManagerSetEnv On
 </Location>
 
 # These documents URI tracking session
@@ -138,6 +140,7 @@ PerlSetVar SessionManagerDebug 5
 	PerlSetVar SessionManagerLock File
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
 	                                    LockDirectory => /tmp"
+	PerlSetVar SessionManagerSetEnv On
 </LocationMatch>
 
 # These documents require cookies session + mod_baskhand cookie load-balancing
@@ -149,6 +152,7 @@ PerlSetVar SessionManagerDebug 5
 	PerlSetVar SessionManagerStoreArgs "Directory => /tmp, \
 	                                    LockDirectory => /tmp"
 	PerlSetVar SessionManagerEnableModBackhand On
+	PerlSetVar SessionManagerSetEnv On
 </Location>
 
 # These documents don't require cookies session

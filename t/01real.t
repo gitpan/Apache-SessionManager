@@ -1,7 +1,19 @@
 #!/usr/bin/perl
 
-use Apache::test qw(skip_test have_httpd test);
-skip_test unless have_httpd;
+my $mod_perl;
+BEGIN {
+	local $@;
+	eval { require Apache::test };
+	$mod_perl = $@ ? 0 : 1;
+}  
+
+# Skip this test if Apache::test is not installed
+unless ( $mod_perl ) {
+	print "1..0\n";
+	exit 0;
+}
+
+Apache::test->skip_test unless Apache::test->have_httpd;
 
 use strict;
 use vars qw($TEST_NUM);
@@ -31,10 +43,10 @@ my %requests = (
 
 print "1.." . (keys %requests) . "\n";
 
-test ++$TEST_NUM, 1;
-test ++$TEST_NUM, 1;
-test ++$TEST_NUM, 1;
-test ++$TEST_NUM, 1;
+Apache::test->test(++$TEST_NUM, 1);
+Apache::test->test(++$TEST_NUM, 1);
+Apache::test->test(++$TEST_NUM, 1);
+Apache::test->test(++$TEST_NUM, 1);
 
 foreach my $testnum (sort {$a <=> $b} keys %requests) {
 	my $response = Apache::test->fetch($requests{$testnum});
