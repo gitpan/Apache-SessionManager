@@ -1,6 +1,26 @@
-This package contains an Apache mod_perl modules to manage
-HTTP sessions.
-It creates a session object and makes it available to all other handlers.
+Description
+-----------
+This is version 0.02 of Apache::SessionManager
+
+This package contains an Apache mod_perl module to manage HTTP sessions.
+Apache::SessionManager is a mod_perl module that helps 
+session management of a web application. This simple module is a 
+wrapper around Apache::Session persistence framework for session data.
+It creates a session object and makes it available to all other handlers 
+transparenlty by putting it in pnotes. 
+
+See perldoc Apache::SessionManager for module documentation and use
+
+Changes from previous version
+-----------------------------
+
++ Added control to bypass expiration time check in new sessions
++ Use of session in test handler t/lib/PrintEnv.pm
++ Added successfully tested platforms in POD [BUGS] section
+! Corrected print on STDERR in _tieSession 
+! Corrected Makefile.PL httpd.conf extra lines
+! Updated pod (moved PerlTransHandler outside <Location> section in
+  a configuration example!)
 
 Installation
 ------------
@@ -21,8 +41,6 @@ Prerequisites
      (http://www.cpan.org/modules/by-module/Apache/libapreq-x.yy.tar.gz)
 - Apache::Session >= 0.53 is required
      (http://www.cpan.org/modules/by-module/Apache/Apache-Session-x.yy.tar.gz)
-
-See perldoc Apache::SessionManager for module documentation 
 
 Copyright (C) 2001,2002 Enrico Sorcinelli. All rights reserved.
 This program is free software; you can redistribute it 

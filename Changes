@@ -5,21 +5,30 @@ Revision history for Perl extension Apache::SessionManager.
 		-X -n Apache::SessionManager
 
 0.01_2  Fri Aug 02 14:00:00 2002
-	+ Write test suite with Apache::test
-	+ Updated docs
+	+ Wrote test suite with Apache::test
+	! Updated docs
 	+ Released as RFC to mod_perl community
 	
 0.01_3  Tue Aug 20 14:00:00 2002
-	+ Use Apache::Session:Flex to configure
+	+ Used Apache::Session:Flex to configure
 	  datastore on the fly (in httpd.conf with
 	  PerlSetVar directives)
-	+ Updated docs and test
+	! Updated docs and test
 	
 0.01_4  Tue Aug 21 14:00:00 2002
-	+ Add support to embed session ID in URI other 
+	+ Added support to embed session ID in URI other 
 	  than in cookie
-	+ Updated docs and test for URI session ID tracking
+	! Updated docs and test for URI session ID tracking
 
 0.01    Fri Aug 23 14:00:00 2002
 	+ Few minor changes
-	+ Updated docs
+	! Updated docs
+
+0.02    Mon Sep 02 17:00:00 2002
+	+ Added control to bypass expiration time check in new sessions
+	+ Use of session in test handler t/lib/PrintEnv.pm
+	+ Added successfully tested platforms in POD [BUGS] section
+	! Corrected print on STDERR in _tieSession 
+	! Corrected Makefile.PL httpd.conf extra lines
+	! Updated pod (moved PerlTransHandler outside <Location> section in
+	  a configuration example!)

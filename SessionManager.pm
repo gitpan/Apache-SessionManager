@@ -18,7 +18,7 @@ use Apache::URI ();
 use Apache::Session::Flex;
 
 use vars qw($VERSION);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 # Translation URI handler (embeds simple management for session tracking via URI)
 sub handler {
@@ -99,16 +99,19 @@ sub handler {
 	}
 	 
 	# Try to retrieve session object from session ID
-	my $res = _tieSession(\%session, $session_id, \%apache_session_flex_options);
+	my $res = _tieSession(\%session, $session_id, \%apache_session_flex_options,$session_config{'SessionManagerDebug'});
 
 	# Session ID not found or invalid session: a new object session will be create
 	if ($res) {
-		my $res = _tieSession(\%session, undef, \%apache_session_flex_options);
+		my $res = _tieSession(\%session, undef, \%apache_session_flex_options,$session_config{'SessionManagerDebug'});
 		$session_id = undef;
-		$session{'_session_start'} = time;
 	}
-	# expiration date check
-	else {
+
+	# for new or invalid session's ID put session start time in special session key '_session_start'
+	$session{'_session_start'} = time if ! defined $session{'_session_start'};
+
+	# session's expiration date check only for existing sessions
+	if ( $session_id ) {
 		print STDERR "$debug_prefix  checking TTL session, ID = $session_id ($session{'_session_timestamp'})\n" if $session_config{'SessionManagerDebug'} > 0;
 		# Session TTL expired: a new object session is create
 		if ( ( $session_config{'SessionManagerInactivity'} && 
@@ -119,7 +122,7 @@ sub handler {
 			print STDERR "$debug_prefix session to delete\n" if $session_config{'SessionManagerDebug'} > 0;
 			tied(%session)->delete;
 			
-			my $res = _tieSession(\%session, undef, \%apache_session_flex_options);
+			my $res = _tieSession(\%session, undef, \%apache_session_flex_options,$session_config{'SessionManagerDebug'});
 
 			$session_id = undef;
 			$session{'_session_start'} = time;
@@ -182,11 +185,11 @@ sub destroy_session {
 }
 
 sub _tieSession {
-	my ($session_ref,$id,$options) = @_;
+	my ($session_ref,$id,$options,$debug) = @_;
 	eval {
 		tie %{$session_ref}, 'Apache::Session::Flex', $id, $options;
 	};
-	print STDERR "tied session ID = $$session_ref{_session_id}\n$@";
+	print STDERR "Tied session ID = $$session_ref{_session_id}\n$@" if $debug >= 3 ;
 	return $@ if $@;
 }
 
@@ -200,7 +203,7 @@ sub _redirect {
 	$args = '?' . $args if $args;
 	$r->content_type('text/html');
  
-	# suggest by Gerald Richter / Matt Sergeant to add scheme://hostname:port to redirect
+	# "suggest by Gerald Richter / Matt Sergeant to add scheme://hostname:port to redirect" (Greg's note)
 	my $uri = Apache::URI->parse($r);
  
 	# hostinfo give port if necessary - otherwise not
@@ -221,7 +224,7 @@ sub _redirect {
 
 =head1 NAME
 
-Apache::SessionManager - simple mod_perl extension to manage sessions 
+Apache::SessionManager - mod_perl extension to manage sessions 
 over HTTP requests
 
 =head1 SYNOPSIS
@@ -233,7 +236,7 @@ In httpd.conf:
 	  
    <Location /my-app-with-session>
       SetHandler perl-script
-      PerlHandler MyModule
+      PerlHandler Apache::MyModule
       PerlSetVar SessionManagerTracking On
       PerlSetVar SessionManagerExpire 3600
       PerlSetVar SessionManagerInactivity 900
@@ -251,8 +254,8 @@ Apache::SessionManager is a mod_perl module that helps
 session management of a web application. This simple module is a 
 wrapper around Apache::Session persistence framework for session data.
 It creates a session object and makes it available to all other handlers 
-by putting in pnotes. In a mod_perl handler you can retrieve the 
-session object directly from pnotes with predefined key 
+transparenlty by putting it in pnotes. In a mod_perl handlers you can retrieve 
+the session object directly from pnotes with predefined key 
 'SESSION_MANAGER_HANDLE':
 
    my $session = $r->pnotes('SESSION_MANAGER_HANDLE') ? $r->pnotes('SESSION_MANAGER_HANDLE') : ();
@@ -287,17 +290,28 @@ Destroy the current session object.
 For instance:
 
    package Apache::MyModule;
-
    use strict;
    use Apache::Constants qw(:common);
-   use Apache::SessionManager ();
- 
+
    sub handler {
       my $r = shift;
+
+      # retrieve session
       my $session = Apache::SessionManager::get_session($r);
+
+      # set a value in current session
+      $$session{'key'} = "some value";
+ 
+      # read value session
+      print "$$session{'key'}";
+
+      # destroy session explicitly
+      Apache::SessionManager::destroy_session($r);
+      
       ...
+ 
       return OK;
-   }	
+   } 
 
 =head1 INSTALLATION
 
@@ -339,7 +353,6 @@ It is posibible to activate this module by location or directory
 only:
 
    <Location /my-app-dir>
-      PerlTransHandler Apache::SessionManager
       PerlSetVar SessionManagerTracking On
    </Location>
 
@@ -448,7 +461,7 @@ Sessions are stored in DB files
 
 =back
 
-In addition to datastore plugins shipped with with Apache::Session,
+In addition to datastore plugins shipped with Apache::Session,
 you can pass the modules you want to use as arguments to the
 store constructor. The Apache::Session::Whatever part is
 appended for you: you should not supply it.
@@ -592,10 +605,10 @@ in front-end server's httpd.conf:
    ProxyPassReverse / http://middle-end.server.com:9000/
 
    RewriteEngine On
-   RewriteRule (^/([0-9a-h]+/)?my-app-dir.*) http://middle-end.server.com:9000$1 [proxy,last]
+   RewriteRule (^/([0-9a-h]+/)?my-app-dir.*) http://middle-end.server.com:9000$1 [P,L]
 
 Take careful to make all links to static content as non relative
-link (eg, "http://myhost.com/images/foo.gif" or "/images/foo.gif")
+link (use "http://myhost.com/images/foo.gif" or "/images/foo.gif")
 or the rewrite engine will proxy these requests to mod_perl server.
 
 =head1 TODO
@@ -624,6 +637,10 @@ register_cleanup method
 
 =item * 
 
+Update test suite to run correclty under Win32 platform
+
+=item * 
+
 Test, test ,test
 
 =back
@@ -640,6 +657,10 @@ His SessionManager project can be found at
 http://sourceforge.net/projects/sessionmanager
 
 =head1 BUGS 
+
+This library has been tested by the author with Perl versions 5.005,
+5.6.0 and 5.6.1 on different platforms: Linux 2.2 and 2.4, Solaris 2.6
+and 2.7 and Windows 98.
 
 Send bug reports and comments to: enrico@sorcinelli.it
 In each report please include the version module, the Perl version,

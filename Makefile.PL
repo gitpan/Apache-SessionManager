@@ -114,7 +114,7 @@ WriteMakefile(
 __DATA__
 # Apache::SessionManager configuration section
 PerlModule Apache::SessionManager
-PerlHeaderParserHandler Apache::SessionManager
+PerlTransHandler Apache::SessionManager
 PerlSetVar SessionManagerTracking On
 PerlSetVar SessionManagerDebug 3
 
